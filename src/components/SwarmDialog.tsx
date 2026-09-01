@@ -33,6 +33,7 @@ export const SWARM_CATEGORIES: SwarmCategory[] = [
   { id: "mission", label: "Mission", Component: MissionCategory },
   { id: "team", label: "Team", Component: TeamCategory },
   { id: "commands", label: "Agent commands", Component: CommandsCategory },
+  { id: "onComplete", label: "On mission complete", Component: OnCompleteCategory },
 ];
 
 export function swarmTeamSize(cfg: SwarmConfig) {
@@ -688,5 +689,31 @@ function RoleBriefRow({ role, cfg, patch, setErr }: CategoryProps & { role: stri
         </button>
       )}
     </div>
+  );
+}
+
+// ── On mission complete ──────────────────────────────────────────────────────
+
+/** One command per line, run once when the swarm's mission is 100% complete
+ *  (every task done) — the "what to do after" the swarm built the thing.
+ *  Blank = nothing runs, which stays the default so existing habits are
+ *  untouched. Same draft-edit pattern as every other category: patch the
+ *  shared config, launch() ships whatever is in the box. */
+function OnCompleteCategory({ cfg, patch }: CategoryProps) {
+  return (
+    <>
+      <div style={{ ...label, marginBottom: 8 }}>Commands to run once, when the swarm is 100% complete <span style={{ fontSize: 10 }}>(after the last task is done)</span></div>
+      <textarea
+        rows={8}
+        placeholder={"One shell command per line, e.g.\nnpm test"}
+        value={cfg.onComplete ?? ""}
+        onChange={(e) => patch({ onComplete: e.target.value })}
+        style={{ ...field, width: "100%", boxSizing: "border-box", resize: "vertical", fontFamily: "inherit" }}
+      />
+      <div style={{ marginTop: 10, fontSize: 10.5, color: "var(--muted)" }}>
+        One shell command per line, run in order when every task of this swarm is complete.
+        Leave blank to run nothing.
+      </div>
+    </>
   );
 }

@@ -134,7 +134,7 @@ describe("headlessRoleCount", () => {
 
 describe("SWARM_CATEGORIES", () => {
   it("has no behaviour category — those toggles moved into Mission", () => {
-    expect(SWARM_CATEGORIES.map((c) => c.id)).toEqual(["mission", "team", "commands"]);
+    expect(SWARM_CATEGORIES.map((c) => c.id)).toEqual(["mission", "team", "commands", "onComplete"]);
   });
 
   it("keeps mission first, so launch()'s validation jump lands on a real category", () => {
