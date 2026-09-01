@@ -56,6 +56,11 @@ export interface SwarmConfig {
   roleBriefs?: Record<string, RoleBrief>; // per-role user .md, keyed by the role name
   // swarmRoles() mints (coordinator | scout | builder-N | reviewer-N, see ROLE_RE).
   // Per launch only — never persisted. A missing/blank entry keeps the generated brief.
+  onComplete?: string; // shell commands to run ONCE when this swarm's mission is 100%
+  // complete — NEWLINE-SEPARATED: each non-empty line is one command, run in order.
+  // Empty/whitespace (the default) = nothing runs. The dialog's "On mission complete"
+  // category edits it; launch() ships it as the swarm's 'on-complete' brain note and
+  // the dispatcher fires it once in the missionDone branch.
 }
 
 export const KNOWN_AGENT_CMDS = ["claude", "codex", "gemini", "opencode"];
@@ -1158,6 +1163,7 @@ export const DEFAULT_SWARM: SwarmConfig = {
   lazyWorkers: true,
   headless: true,
   roleBriefs: {},
+  onComplete: "",
 };
 
 /** How many review panes a (possibly old) config asks for. `reviewer:boolean`
