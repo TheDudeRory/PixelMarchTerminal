@@ -80,66 +80,9 @@ export const screenshotList = (): Promise<string[]> => invoke("screenshot_list")
  *  the accepted count. See screenshot.rs prune_dir / PROTECTED. */
 export const screenshotProtect = (paths: string[]): Promise<number> => invoke("screenshot_protect", { paths });
 
-// Global Hotkeys (KeyForge fold-in) — the Rust engine owns the profile JSON in
-// the portable hotkeys/ dir in the app's data/ folder; these register combos with the OS.
-// Actions: launch a program, run a shell command line, or fire a macro from the
-// KeyForge macro engine (src-tauri/src/macros, Action::RunMacro in
-// hotkeys/bindings.rs:28) by macro id. Input synthesis / window / audio live in
-// the macro engine and are reachable only through run_macro, never as bare
-// hotkey actions. Macro CRUD IPC lives in MacroEditor.tsx, not here.
-export type HotkeyAction =
-  | { type: "launch_program"; path: string; args?: string[] }
-  | { type: "run_command"; command: string }
-  | { type: "run_macro"; id: string };
-export interface HotkeyBinding {
-  hotkey: string; // combo string, e.g. "Ctrl+Alt+K"
-  enabled: boolean;
-  action: HotkeyAction;
-}
-// `errors` maps a NORMALIZED combo (lowercased, no spaces) to why it is inactive
-// (conflict with an earlier binding / invalid combo / the OS refused it).
-export interface HotkeyView {
-  bindings: HotkeyBinding[];
-  errors: Record<string, string>;
-}
-export const hotkeysList = (): Promise<HotkeyView> => invoke("hotkeys_list");
-export const hotkeysSave = (bindings: HotkeyBinding[]): Promise<HotkeyView> =>
-  invoke("hotkeys_save", { bindings });
-
-// Macro editor play button — run the DRAFT being edited without saving it.
-// `macro` is the editor's macro JSON (same shape macros_save takes). Both
-// starters return a run id; progress arrives as "macro-test-step" events and
-// exactly one "macro-test-done" per run. Cancel stops that run only (unlike
-// macros_stop_all, which is the emergency stop for every running macro).
-// Sub-macros in a `run_macro` step still resolve to their last SAVED version.
-export type MacroTestStatus = "start" | "ok" | "skipped" | "error";
-export interface MacroTestStep {
-  run_id: number;
-  index: number;   // top-level step index in macro.steps
-  total: number;
-  summary: string; // human-readable step label
-  status: MacroTestStatus;
-  error?: string;  // set when status === "error"
-}
-export interface MacroTestDone {
-  run_id: number;
-  status: "completed" | "stopped" | "error";
-  error: string | null;
-}
-export const macrosTestRun = (macro: unknown): Promise<number> =>
-  invoke("macros_test_run", { macro });
-export const macrosTestStep = (macro: unknown, index: number): Promise<number> =>
-  invoke("macros_test_step", { macro, index });
-export const macrosTestCancel = (runId: number): Promise<boolean> =>
-  invoke("macros_test_cancel", { runId });
-export const onMacroTestStep = (cb: (s: MacroTestStep) => void): Promise<UnlistenFn> =>
-  listen<MacroTestStep>("macro-test-step", (e) => cb(e.payload));
-export const onMacroTestDone = (cb: (d: MacroTestDone) => void): Promise<UnlistenFn> =>
-  listen<MacroTestDone>("macro-test-done", (e) => cb(e.payload));
-
-// App-level global shortcuts owned by lib.rs (distinct from the user Global
-// Hotkeys above): the summon/hide toggle and the screenshot trigger. Editable
-// from the Keybinds settings category; persisted in the app's data/ folder.
+// App-level global shortcuts owned by lib.rs: the summon/hide toggle and the
+// screenshot trigger. Editable from the Keybinds settings category; persisted
+// in the app's data/ folder.
 export interface AppShortcuts {
   summon: string;     // combo, e.g. "CmdOrCtrl+Alt+Backquote"
   screenshot: string; // combo, e.g. "CmdOrCtrl+Alt+S"

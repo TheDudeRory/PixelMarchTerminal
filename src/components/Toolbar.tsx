@@ -29,7 +29,6 @@ export default function Toolbar() {
   const toggleSidebar = useLayout((s) => s.toggleSidebar);
   const openPalette = useLayout((s) => s.openPalette);
   const openProfileManager = useLayout((s) => s.openProfileManager);
-  const openHotkeys = useLayout((s) => s.openHotkeys);
   const openSettings = useLayout((s) => s.openSettings);
   const openBigBrain = useLayout((s) => s.openBigBrain);
   const bigBrainOpen = useLayout((s) => s.bigBrainOpen);
@@ -71,8 +70,6 @@ export default function Toolbar() {
         style={{ fontSize: 12, background: "var(--border)", color: "var(--text)", border: "1px solid var(--border)", borderRadius: 5, padding: "3px 9px", cursor: "pointer" }}>⌘ Commands</button>
       <button onClick={() => openProfileManager(true)} title="Manage profiles"
         style={{ fontSize: 12, background: "transparent", color: "var(--muted)", border: "1px solid var(--border)", borderRadius: 5, padding: "3px 9px", cursor: "pointer" }}>Profiles</button>
-      <button onClick={() => openHotkeys(true)} title="Global Hotkeys"
-        style={{ fontSize: 12, background: "transparent", color: "var(--muted)", border: "1px solid var(--border)", borderRadius: 5, padding: "3px 9px", cursor: "pointer" }}>Hotkeys</button>
       <button onClick={() => openGallery(!galleryOpen)} title="Screenshot gallery"
         style={{ fontSize: 14, lineHeight: 1, background: galleryOpen ? "var(--accent)" : "transparent", color: galleryOpen ? "#fff" : "var(--muted)", border: "1px solid var(--border)", borderRadius: 5, padding: "3px 8px", cursor: "pointer" }}>📷</button>
       <button onClick={() => openBigBrain(!bigBrainOpen)} title="BigBrain — local memory service (Ctrl+Shift+M)"
