@@ -276,6 +276,18 @@ fn app_shortcuts_set(app: tauri::AppHandle, summon: String, screenshot: String) 
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    run_app(false)
+}
+
+/// The single app runner. `headless` — the `--swarm <profile> <prompt>`
+/// self-run — runs the same app with the main window offscreen+hidden and
+/// without the desktop furniture: no single-instance lock (a self-run must
+/// start while a GUI is already up, not focus the other window and exit), no
+/// tray, no global shortcuts (a summon hotkey would unhide the hidden window,
+/// and user hotkeys would fire macros in the background). The webview runs
+/// exactly as normal — that's where the swarm's React hooks live, and they
+/// orchestrate the mission; swarmLaunch.ts exits the process when it is done.
+fn run_app(headless: bool) {
     // Self-hosting escape hatch: a swarm working on PixelMarch from inside
     // PixelMarch must be able to launch the build it just made. The
     // single-instance lock is keyed on the app identifier, so a second exe
@@ -290,17 +302,22 @@ pub fn run() {
             context.config_mut().identifier = id;
         }
     }
-    tauri::Builder::default()
+    let mut builder = tauri::Builder::default();
+    if !headless {
         // Single-instance must be registered first: a second launch focuses the
-        // existing window instead of opening another.
-        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-            use tauri::Manager;
-            if let Some(win) = app.get_webview_window("main") {
-                let _ = win.unminimize();
-                let _ = win.show();
-                let _ = win.set_focus();
-            }
-        }))
+        // existing window instead of opening another. (Skipped for the headless
+        // self-run: it must start alongside a live GUI, not focus it and exit.)
+        builder = builder
+            .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+                use tauri::Manager;
+                if let Some(win) = app.get_webview_window("main") {
+                    let _ = win.unminimize();
+                    let _ = win.show();
+                    let _ = win.set_focus();
+                }
+            }));
+    }
+    builder
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_clipboard_manager::init())
@@ -348,7 +365,7 @@ pub fn run() {
                 })
                 .build(),
         )
-        .setup(|app| {
+        .setup(move |app| {
             use tauri::Manager;
             use tauri_plugin_global_shortcut::GlobalShortcutExt;
             // Sweep the leftover exe from a previous self-update, if any.
@@ -385,22 +402,24 @@ pub fn run() {
             }
             app.manage(client);
             app.manage(sysmon::SysMon::new());
-            // App-level global shortcuts (summon/hide + screenshot), from the
-            // persisted app-shortcuts.json if present, else the defaults. Editable
-            // at runtime via app_shortcuts_set (Keybinds settings category).
-            let app_sc = load_app_shortcuts();
-            let _ = app.global_shortcut().register(app_sc.summon.as_str());
-            let _ = app.global_shortcut().register(app_sc.screenshot.as_str());
-            *app_shortcuts_cell().lock().unwrap() = app_sc;
-            // Register the user's Global Hotkeys (KeyForge fold-in) from the
-            // persisted hotkeys/default.json profile.
-            hotkeys::init(app.handle());
-            // Voice-To-Text (VoiceMarch fold-in): load settings and, when built
-            // with --features voice, spawn the capture thread + register PTT.
-            voice::init(app.handle());
-            // System tray (VoiceMarch fold-in): Show / Voice / Quit + tooltip.
-            if let Err(e) = voice::build_tray(app.handle()) {
-                eprintln!("failed to build tray: {e}");
+            if !headless {
+                // App-level global shortcuts (summon/hide + screenshot), from the
+                // persisted app-shortcuts.json if present, else the defaults. Editable
+                // at runtime via app_shortcuts_set (Keybinds settings category).
+                let app_sc = load_app_shortcuts();
+                let _ = app.global_shortcut().register(app_sc.summon.as_str());
+                let _ = app.global_shortcut().register(app_sc.screenshot.as_str());
+                *app_shortcuts_cell().lock().unwrap() = app_sc;
+                // Register the user's Global Hotkeys (KeyForge fold-in) from the
+                // persisted hotkeys/default.json profile.
+                hotkeys::init(app.handle());
+                // Voice-To-Text (VoiceMarch fold-in): load settings and, when built
+                // with --features voice, spawn the capture thread + register PTT.
+                voice::init(app.handle());
+                // System tray (VoiceMarch fold-in): Show / Voice / Quit + tooltip.
+                if let Err(e) = voice::build_tray(app.handle()) {
+                    eprintln!("failed to build tray: {e}");
+                }
             }
             // asset: protocol scope. Config ships an EMPTY static scope (was
             // ["**"] — the webview could read ANY file on disk via asset://).
@@ -414,6 +433,16 @@ pub fn run() {
             }
             if let Ok(base) = state::state_dir() {
                 let _ = app.asset_protocol_scope().allow_directory(base.join("brain"), true);
+            }
+            if headless {
+                // Offscreen first — a window manager may briefly map a new
+                // window before the hide lands — then hidden. The webview must
+                // keep running (the swarm's React hooks live in it), but
+                // nothing visible may exist.
+                if let Some(win) = app.get_webview_window("main") {
+                    let _ = win.set_position(tauri::PhysicalPosition::new(-10_000, -10_000));
+                    let _ = win.hide();
+                }
             }
             Ok(())
         })
@@ -466,7 +495,8 @@ pub fn run() {
             update::check_update, update::apply_update, update::update_configured,
             license::license_status, license::license_activate,
             license::license_deactivate, license::license_refresh,
-            license::license_portal
+            license::license_portal,
+            swarm_headless_request, headless_fail
         ])
         // Voice pill: hide-to-tray on close + persist its dragged position. Scoped
         // to the "voice" label inside the handler; the main window is untouched.
@@ -475,4 +505,276 @@ pub fn run() {
         })
         .run(context)
         .expect("error while running tauri application");
+}
+
+// ── Headless self-run — `pixelmarch --swarm <profile> <prompt>` ──────────────
+//
+// Run one swarm with no human in front of the screen: the CLI resolves the
+// profile to a cwd + agent command (failing on the terminal when it cannot),
+// runs the app with the window hidden, and the webview's swarmLaunch.ts picks
+// the request up via `swarm_headless_request`, launches through the SAME
+// shared path as the dialog, and exits the process when the mission completes.
+
+/// The `--swarm` request, resolved CLI-side and handed to the webview.
+#[derive(Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HeadlessSwarmRequest {
+    /// The prompt: the swarm's mission, verbatim.
+    pub mission: String,
+    /// The profile's working directory: every agent's cwd, and the repo the
+    /// swarm's worktrees and guard live in.
+    pub cwd: String,
+    /// Agent command for every role — the profile's startup command, or
+    /// "claude" (swarm.ts's DEFAULT_AGENT_CMD) when the profile has none.
+    pub agent: String,
+    /// True when THIS process spawned the PTY host (no host was running):
+    /// exiting may shut the host down. False = a live instance owns the host
+    /// (and BigBrain), so only this GUI may go — never its terminals.
+    pub owns_host: bool,
+}
+
+static HEADLESS_REQUEST: std::sync::OnceLock<std::sync::Mutex<Option<HeadlessSwarmRequest>>> =
+    std::sync::OnceLock::new();
+
+fn headless_slot() -> &'static std::sync::Mutex<Option<HeadlessSwarmRequest>> {
+    HEADLESS_REQUEST.get_or_init(|| std::sync::Mutex::new(None))
+}
+
+/// Pull `--swarm <profile> <prompt>` out of the argv, wherever it sits.
+/// `Ok(None)` = flag absent; `Err` = present but incomplete. Thin pure helper
+/// so main.rs (a binary crate, untestable from the suite) gets its parsing
+/// covered here.
+pub fn parse_swarm_args(args: &[String]) -> Result<Option<(String, String)>, String> {
+    for (i, arg) in args.iter().enumerate() {
+        if arg != "--swarm" {
+            continue;
+        }
+        let profile = args
+            .get(i + 1)
+            .ok_or("--swarm needs a profile name: --swarm <profile> <prompt>")?;
+        let prompt = args
+            .get(i + 2)
+            .ok_or("--swarm needs a prompt: --swarm <profile> <prompt>")?;
+        return Ok(Some((profile.clone(), prompt.clone())));
+    }
+    Ok(None)
+}
+
+/// Agent command when the profile has no startup command — mirrors
+/// DEFAULT_AGENT_CMD in lib/swarm.ts, which the launch builds the panes from.
+const DEFAULT_AGENT_CMD: &str = "claude";
+
+/// Resolve a profile name against the persisted state JSON (data/pixelmarch.json,
+/// written by the frontend — the frontend owns the schema) to the swarm's
+/// working directory and agent command. The error strings are user-facing:
+/// on the CLI path they are printed before any window exists.
+fn profile_name(p: &serde_json::Value) -> &str {
+    p.get("name").and_then(|n| n.as_str()).unwrap_or("")
+}
+
+pub fn headless_request_from_state(
+    state_json: Option<&str>,
+    profile: &str,
+) -> Result<(String, String), String> {
+    let v: serde_json::Value = state_json
+        .and_then(|s| serde_json::from_str(s).ok())
+        .ok_or_else(|| {
+            "no saved state (data/pixelmarch.json) — launch the app once and save a profile"
+                .to_string()
+        })?;
+    let profiles = v
+        .get("profiles")
+        .and_then(|p| p.as_array())
+        .filter(|p| !p.is_empty())
+        .ok_or_else(|| {
+            "no profiles in the saved state — save a terminal profile from the app first"
+                .to_string()
+        })?;
+    let wanted = profile.trim();
+    let prof = profiles
+        .iter()
+        .find(|p| profile_name(p) == wanted)
+        .or_else(|| {
+            let lower = wanted.to_lowercase();
+            profiles.iter().find(|p| profile_name(p).to_lowercase() == lower)
+        })
+        .ok_or_else(|| {
+            let known = profiles
+                .iter()
+                .map(profile_name)
+                .filter(|n| !n.is_empty())
+                .collect::<Vec<_>>()
+                .join(", ");
+            format!("no profile named {wanted:?} (known profiles: {known})")
+        })?;
+    let cwd = prof
+        .get("cwd")
+        .and_then(|c| c.as_str())
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .ok_or_else(|| format!("profile {wanted:?} has no working directory set"))?
+        .to_string();
+    let agent = prof
+        .get("startupCommand")
+        .and_then(|c| c.as_str())
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .unwrap_or(DEFAULT_AGENT_CMD)
+        .to_string();
+    Ok((cwd, agent))
+}
+
+/// True when a PTY host is already answering on its published port — i.e. a
+/// live PixelMarch instance owns the host (and BigBrain) this process would
+/// otherwise spawn. A headless run that borrows a host must exit GUI-only.
+fn host_is_running() -> bool {
+    let port = match std::fs::read_to_string(host::port_file())
+        .ok()
+        .and_then(|s| s.trim().parse::<u16>().ok())
+    {
+        Some(p) => p,
+        None => return false,
+    };
+    std::net::TcpStream::connect(("127.0.0.1", port)).is_ok()
+}
+
+/// `--swarm <profile> <prompt>`: run one swarm in a hidden window and exit
+/// when the mission completes. Resolves the profile first, so a bad profile
+/// fails on the terminal BEFORE any window exists. Never returns.
+pub fn run_swarm_headless(profile: &str, prompt: &str) -> ! {
+    let state = state::load_state().ok().flatten();
+    let (cwd, agent) = match headless_request_from_state(state.as_deref(), profile) {
+        Ok(x) => x,
+        Err(e) => {
+            eprintln!("pixelmarch --swarm: {e}");
+            let _ = macros::sys::notify("PixelMarch", &e);
+            std::process::exit(2);
+        }
+    };
+    *headless_slot().lock().unwrap() = Some(HeadlessSwarmRequest {
+        mission: prompt.to_string(),
+        cwd,
+        agent,
+        owns_host: !host_is_running(),
+    });
+    run_app(true);
+    // run_app blocks until the app exits (the webview's quit/detach-quit on
+    // mission completion). If it ever returns anyway, exit cleanly — a
+    // fallthrough would start a second, fully visible app from the CLI.
+    std::process::exit(0);
+}
+
+/// The pending `--swarm` request for this process, or None for a normal GUI
+/// launch. swarmLaunch.ts asks once at webview boot; a plain GUI launch gets
+/// None and never sees this.
+#[tauri::command]
+fn swarm_headless_request() -> Option<HeadlessSwarmRequest> {
+    headless_slot().lock().unwrap().clone()
+}
+
+/// A headless launch failed in the webview (untracked root files, no brain,
+/// …). The window is hidden, so the terminal is the only surface: print,
+/// notify, and exit non-zero so the caller's script sees the failure.
+#[tauri::command]
+fn headless_fail(msg: String) {
+    eprintln!("pixelmarch --swarm: {msg}");
+    let _ = macros::sys::notify("PixelMarch", &msg);
+    // Let stderr drain before the process dies.
+    std::thread::sleep(std::time::Duration::from_millis(300));
+    std::process::exit(1);
+}
+
+#[cfg(test)]
+mod headless_tests {
+    use super::*;
+
+    const STATE: &str = r#"{
+      "activeId": "ws1",
+      "workspaces": [],
+      "profiles": [
+        { "id": "p1", "name": "repo", "cwd": "/home/u/proj", "startupCommand": "claude --dangerously-skip-permissions" },
+        { "id": "p2", "name": "Bare", "cwd": "/home/u/bare" },
+        { "id": "p3", "name": "NoCwd", "startupCommand": "codex" },
+        { "id": "p4", "name": "Blank", "cwd": "   ", "startupCommand": "  " }
+      ]
+    }"#;
+
+    fn args(xs: &[&str]) -> Vec<String> {
+        xs.iter().map(|s| s.to_string()).collect()
+    }
+
+    #[test]
+    fn parse_swarm_args_absent() {
+        assert_eq!(parse_swarm_args(&args(&[])), Ok(None));
+        assert_eq!(parse_swarm_args(&args(&["pixelmarch"])), Ok(None));
+        assert_eq!(
+            parse_swarm_args(&args(&["pixelmarch", "--await-exit", "4242"])),
+            Ok(None)
+        );
+    }
+
+    #[test]
+    fn parse_swarm_args_present_anywhere() {
+        let got = parse_swarm_args(&args(&["pixelmarch", "--swarm", "repo", "ship it"]))
+            .unwrap()
+            .unwrap();
+        assert_eq!(got, ("repo".to_string(), "ship it".to_string()));
+        // With other flags around it; the prompt is ONE argv entry, spaces and all.
+        let got = parse_swarm_args(&args(&[
+            "pixelmarch",
+            "--await-exit",
+            "1",
+            "--swarm",
+            "repo",
+            "fix the thing",
+        ]))
+        .unwrap()
+        .unwrap();
+        assert_eq!(got, ("repo".to_string(), "fix the thing".to_string()));
+    }
+
+    #[test]
+    fn parse_swarm_args_incomplete() {
+        let e = parse_swarm_args(&args(&["pixelmarch", "--swarm", "repo"]))
+            .unwrap_err();
+        assert!(e.contains("prompt"), "{e}");
+        let e = parse_swarm_args(&args(&["pixelmarch", "--swarm"])).unwrap_err();
+        assert!(e.contains("profile"), "{e}");
+    }
+
+    #[test]
+    fn resolve_profile_cwd_and_agent() {
+        let (cwd, agent) = headless_request_from_state(Some(STATE), "repo").unwrap();
+        assert_eq!(cwd, "/home/u/proj");
+        assert_eq!(agent, "claude --dangerously-skip-permissions");
+    }
+
+    #[test]
+    fn resolve_profile_case_insensitive() {
+        let (cwd, _) = headless_request_from_state(Some(STATE), "REPO").unwrap();
+        assert_eq!(cwd, "/home/u/proj");
+    }
+
+    #[test]
+    fn resolve_profile_defaults_agent_to_claude() {
+        let (_, agent) = headless_request_from_state(Some(STATE), "Bare").unwrap();
+        assert_eq!(agent, "claude");
+    }
+
+    #[test]
+    fn resolve_profile_errors() {
+        assert!(headless_request_from_state(None, "repo").is_err());
+        assert!(headless_request_from_state(Some("{ not json"), "repo").is_err());
+        assert!(headless_request_from_state(Some(r#"{"profiles": []}"#), "repo").is_err());
+        let e = headless_request_from_state(Some(STATE), "nope").unwrap_err();
+        assert!(e.contains("nope"), "{e}");
+        assert!(e.contains("repo") && e.contains("Bare"), "known names listed: {e}");
+        assert!(headless_request_from_state(Some(STATE), "NoCwd")
+            .unwrap_err()
+            .contains("working directory"));
+        // Whitespace-only cwd/startupCommand count as unset (cwd is checked first).
+        assert!(headless_request_from_state(Some(STATE), "Blank")
+            .unwrap_err()
+            .contains("working directory"));
+    }
 }

@@ -7,8 +7,8 @@
 // SwarmConfig — one launch path, two fronts. The notes written here ARE the
 // swarm: the panes and the dispatcher only ever read them back.
 import { invoke } from "@tauri-apps/api/core";
-import { brainSave, brainUrl, ensureGitRepo, swarmGuardInstall, swarmGuardProbe, swarmMcpConfig, swarmReclaim, swarmRegisterAgents, swarmUntracked, swarmWorktreeSweep } from "./ipc";
-import { gridRoot, parentProject, protocolNotes, reviewerCount, swarmLiveInRepo, swarmPanes, swarmProject, swarmRoles, swarmsInRepo, type RoleIdentityFn, type SwarmConfig } from "./swarm";
+import { brainFeedNow, brainSave, brainUrl, detachQuit, ensureGitRepo, onPtyExit, quitApp, subscribeBrainFeed, swarmGuardInstall, swarmGuardProbe, swarmMcpConfig, swarmReclaim, swarmRegisterAgents, swarmUntracked, swarmWorktreeSweep } from "./ipc";
+import { DEFAULT_SWARM, gridRoot, missionDone, parentProject, protocolNotes, reviewerCount, swarmLiveInRepo, swarmPanes, swarmProject, swarmRoles, swarmsInRepo, type RoleIdentityFn, type SwarmConfig } from "./swarm";
 import { useLayout } from "../stores/layout";
 
 /** The pre-launch warning for untracked files in the repo ROOT.
@@ -103,8 +103,10 @@ export interface LaunchSwarmOpts {
  *  and lets a thrown error mean "the launch did not happen" — nothing is
  *  rolled back, so a caller must not assume half a launch on failure (the brain
  *  project is fresh per launch, and the sweep is the only step that touches
- *  anything pre-existing, and it runs before any note is written). */
-export async function launchSwarm(cfg: SwarmConfig, opts: LaunchSwarmOpts = {}): Promise<void> {
+ *  anything pre-existing, and it runs before any note is written).
+ *  Resolves to the swarm project name the notes were written to — the headless
+ *  self-run watches THAT project for completion. */
+export async function launchSwarm(cfg: SwarmConfig, opts: LaunchSwarmOpts = {}): Promise<string> {
   if (!cfg.mission.trim() || !cfg.cwd.trim()) {
     throw new Error("Mission and working directory are required.");
   }
@@ -255,4 +257,173 @@ export async function launchSwarm(cfg: SwarmConfig, opts: LaunchSwarmOpts = {}):
   // new run on old commits, so it stays loud.
   if (stuck.length)
     s.addToast(`Could not clear ${stuck.map((t) => t.task).join(", ")}: ${stuck[0].reason ?? "unknown"}. That task number will reuse the old tree.`);
+  return project;
+}
+
+// ── Headless self-run — `pixelmarch --swarm <profile> <prompt>` ──────────────
+//
+// main.rs parses the flag and lib.rs resolves the profile (cwd + agent
+// command) and runs the app with the main window hidden. This module is always
+// imported (App -> SwarmDialog -> here), so at webview boot in a Tauri window
+// it asks Rust for the pending request, launches through the SAME launchSwarm
+// the dialog uses, and exits the process when the mission is done. The
+// existing React hooks in App (useSwarmDispatch et al.) orchestrate the swarm;
+// this only waits for completion and then exits. In a plain browser or vitest
+// (no window.__TAURI_INTERNALS__) none of it runs.
+
+/** The pending request for a `--swarm` self-run, as lib.rs resolved it. */
+export interface HeadlessSwarmRequest {
+  mission: string;
+  cwd: string;
+  /** Agent command for every role (the profile's startup command, else "claude"). */
+  agent: string;
+  /** True when this process spawned the PTY host — only then may the exit shut
+   *  the host down; otherwise a live instance owns it and only the GUI goes. */
+  ownsHost: boolean;
+}
+
+/** The SwarmConfig a headless self-run launches with: the dialog's default
+ *  team (DEFAULT_SWARM), the prompt as the mission, the profile's cwd, and the
+ *  profile's agent command for every role. Pure — the CLI-side tests pin it. */
+export function headlessSwarmConfig(req: HeadlessSwarmRequest): SwarmConfig {
+  return {
+    ...DEFAULT_SWARM,
+    mission: req.mission,
+    cwd: req.cwd,
+    agentCmds: {
+      coordinator: req.agent,
+      // cfg.builders = 2 panes, both running the profile's command.
+      builders: [req.agent, req.agent],
+      scout: req.agent,
+      reviewer: req.agent,
+      reviewers: [req.agent],
+    },
+  };
+}
+
+/** Wait for the layout store to hydrate so the launch's workspace is not
+ *  clobbered by the restore that lands a moment after boot. */
+export function waitForHydrated(timeoutMs: number): Promise<void> {
+  if (useLayout.getState().hydrated) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    let unsub: (() => void) | undefined;
+    const timer = setTimeout(() => {
+      unsub?.();
+      reject(new Error("the layout never hydrated"));
+    }, timeoutMs);
+    unsub = useLayout.subscribe((s) => {
+      if (s.hydrated) {
+        clearTimeout(timer);
+        unsub?.();
+        resolve();
+      }
+    });
+  });
+}
+
+/** The completion tick — the dispatcher's own cadence, and it must keep
+ *  running while the window is hidden (nobody is looking at it). */
+const HEADLESS_TICK_MS = 5000;
+
+/** Resolve when the mission is done — a non-empty result note AND no tasks
+ *  still in flight, the exact gate the dispatcher's completion branch uses.
+ *  The dispatcher (App) may already be subscribed to the same feed, in which
+ *  case the callback can fire inside the subscribe call, before unsub is
+ *  assigned — harmless: we are exiting right after. */
+export function watchMissionDone(project: string): Promise<void> {
+  return new Promise((resolve) => {
+    let finished = false;
+    let unsub: (() => void) | undefined;
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      unsub?.();
+      resolve();
+    };
+    const check = () => {
+      const feed = brainFeedNow(project);
+      if (!feed?.ready) return;
+      const result = feed.keys.includes("result") ? feed.notes["result"]?.value : undefined;
+      if (missionDone(result, feed.tasks)) finish();
+    };
+    unsub = subscribeBrainFeed(
+      project,
+      { intervalMs: HEADLESS_TICK_MS, hiddenMs: HEADLESS_TICK_MS, watch: ["result"] },
+      check,
+    );
+    check();
+  });
+}
+
+/** Cap on the wait for an on-complete hook to finish — a hanging hook must
+ *  not hang the process. */
+const ONCOMPLETE_EXIT_TIMEOUT_MS = 30 * 60_000;
+
+/** Resolve when the host reports the named session exited (the on-complete
+ *  hook's piped session, id `swarm-oncomplete-<project>` — swarmDispatch.ts),
+ *  or after the cap. */
+export function waitForPtyExit(id: string, timeoutMs: number): Promise<void> {
+  return new Promise((resolve) => {
+    let unlisten: (() => void) | undefined;
+    const timer = setTimeout(() => {
+      unlisten?.();
+      resolve();
+    }, timeoutMs);
+    void onPtyExit((p) => {
+      if (p.id === id) {
+        clearTimeout(timer);
+        unlisten?.();
+        resolve();
+      }
+    }).then((un) => {
+      unlisten = un;
+    });
+  });
+}
+
+async function headlessBoot(): Promise<void> {
+  let req: HeadlessSwarmRequest | null;
+  try {
+    req = (await invoke<HeadlessSwarmRequest | null>("swarm_headless_request")) ?? null;
+  } catch {
+    return; // no Tauri internals after all — nothing to do
+  }
+  if (!req) return; // a normal GUI launch
+  const cfg = headlessSwarmConfig(req);
+  try {
+    await waitForHydrated(30_000);
+    const project = await launchSwarm(cfg);
+    // The React hooks in App drive the swarm; all that is left is to wait for
+    // completion and exit.
+    await watchMissionDone(project);
+    // When a hook IS configured, let it finish on the host before the exit
+    // tears the host down (the dispatcher fires it in the very missionDone
+    // branch this watcher resolves on).
+    if (cfg.onComplete?.trim()) await waitForPtyExit(`swarm-oncomplete-${project}`, ONCOMPLETE_EXIT_TIMEOUT_MS);
+    if (req.ownsHost) await quitApp();
+    else await detachQuit();
+  } catch (e) {
+    // The window is hidden — the terminal is the only surface left. Rust
+    // prints, notifies, and exits non-zero.
+    const msg = e instanceof Error ? e.message : String(e);
+    try {
+      await invoke("headless_fail", { msg });
+    } catch {
+      /* fall through */
+    }
+    try {
+      await detachQuit();
+    } catch {
+      /* headless_fail already took the process down */
+    }
+  }
+}
+
+// Boot once per webview — modules run once, so a flag is not even needed.
+// The __TAURI_INTERNALS__ check keeps plain-browser dev and vitest out.
+if (
+  typeof window !== "undefined" &&
+  (window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__
+) {
+  void headlessBoot();
 }
