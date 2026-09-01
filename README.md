@@ -25,8 +25,7 @@ Packaging: `bash scripts/package-linux.sh` emits `dist-zip/pixelmarch-<version>-
 - `src-tauri/` — Rust: PTY, host sidecar, macros (KeyForge), voice, OCR, screenshots, BigBrain, licensing client
 - `src/` — React frontend (xterm.js, zustand)
 - `scripts/` — build/run/package
-- `docs/` — `ipc.md` (frontend↔Rust commands), `linux.md`
-- `packaging/`, `legal/` — inputs for the zip
+- `packaging/`, `legal/` — inputs `scripts/package-linux.sh` stages into the zip
 
 The in-app updater does `git pull` + rebuild (`src-tauri/src/update.rs`); point this
 repo at a remote before using it.
