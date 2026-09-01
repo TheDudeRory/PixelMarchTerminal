@@ -1,0 +1,164 @@
+PixelMarch @VERSION@ — Linux (@ARCH@)
+=========================================================================
+
+Download one zip, extract it, run it. There is no installer, and everything
+PixelMarch saves stays in the folder you extracted — settings, macros,
+hotkeys, screenshots, the webview cache, and any voice model you download.
+Move the folder and the whole profile moves with it. Delete it and nothing is
+left behind (the one exception is the optional autostart entry, section 6).
+
+
+1. QUICK START
+-------------------------------------------------------------------------
+
+    unzip pixelmarch-@VERSION@-linux-@ARCH@.zip -d ~
+    cd ~/pixelmarch-@VERSION@-linux-@ARCH@
+    ./pixelmarch
+
+If it refuses to start, ./pixelmarch tells you exactly what is missing and
+prints the one command that installs it for your distro. To run those checks
+without launching:
+
+    ./pixelmarch --check
+
+Two things to know about where you extract it:
+
+  * The folder must be WRITABLE BY YOU — the app keeps all of its state
+    there. Your home directory is right; /opt or /usr/local is not.
+  * If your archive manager dropped the exec bit, the launcher restores it.
+    If that fails too:  chmod +x pixelmarch pixelmarch-bin
+
+The zip holds seven files: pixelmarch (the launcher you run), pixelmarch-bin
+(the actual program), INSTALL.txt, LICENSE.txt, THIRD-PARTY-LICENSES.txt,
+pixelmarch.desktop, pixelmarch.png. No settings ship with it, so first launch
+gives you a clean profile.
+
+
+2. WHAT YOUR SYSTEM MUST ALREADY HAVE
+-------------------------------------------------------------------------
+
+2a. A RECENT ENOUGH DISTRO
+
+This build needs glibc 2.39+ and libstdc++ from GCC 13+. That means:
+
+    WORKS      Ubuntu 24.04+, Debian 13+, Fedora 40+, Arch/CachyOS/Manjaro,
+               openSUSE Tumbleweed, and anything newer.
+    CANNOT RUN Ubuntu 22.04 (glibc 2.35), Debian 12 (2.36),
+               RHEL/Alma/Rocky 9 (2.34).
+
+On the older ones there is no package to install — the binary will not load
+at all. Build from source, or use a distro from the first list.
+
+2b. THE WEBKITGTK / GTK STACK
+
+The binary links against your system's WebKitGTK; it cannot be bundled in a
+zip. Without these the app does not start:
+
+  Arch / CachyOS / Manjaro
+    sudo pacman -S --needed webkit2gtk-4.1 gtk3 libsoup3 alsa-lib
+
+  Debian 13+ / Ubuntu 24.04+
+    sudo apt install libwebkit2gtk-4.1-0 libgtk-3-0 libsoup-3.0-0 libasound2t64
+
+  Fedora 40+
+    sudo dnf install webkit2gtk4.1 gtk3 libsoup3 alsa-lib
+
+2c. X11 OR XWAYLAND
+
+PixelMarch forces GDK_BACKEND=x11 at startup and its window/pixel macros talk
+X11 directly — there is no Wayland path. On an X11 session you already have
+what you need. On a Wayland session (GNOME, KDE Plasma, Sway…) XWayland must
+be installed or no window opens:
+
+    Arch:    sudo pacman -S --needed xorg-xwayland
+    Debian:  sudo apt install xwayland
+    Fedora:  sudo dnf install xorg-x11-server-Xwayland
+
+Then log out and back in so the compositor starts it.
+
+
+3. OPTIONAL — features that degrade with a clear message
+-------------------------------------------------------------------------
+
+Missing any of these still leaves a working app; only the named feature
+reports a failure instead of working.
+
+  pulseaudio / pactl        per-app volume macros, and mic mute while
+    Arch:   libpulse        push-to-talk is held
+    Debian: pulseaudio-utils
+    Fedora: pulseaudio-utils
+
+  xdotool (libxdo)          input injection — keystroke/click macros and
+    Arch:   xdotool         "type" style voice insertion
+    Debian: xdotool
+    Fedora: xdotool
+
+  libayatana-appindicator   the system-tray icon. Loaded on demand; if it is
+    Arch:   libayatana-appindicator      absent the app starts normally and
+    Debian: libayatana-appindicator3-1   just has no tray icon.
+    Fedora: libayatana-appindicator-gtk3
+
+
+4. VOICE MODELS ARE NOT INCLUDED
+-------------------------------------------------------------------------
+
+Speech-to-text needs a Whisper model file (ggml-*.bin, 75 MB - 1.5 GB). None
+is shipped in this zip.
+
+Install one from inside the app: Settings > Voice-To-Text. It will tell you
+which model is expected and offer to download it, or let you browse to a
+ggml-*.bin you already have. The model lands next to the binary, in the same
+portable folder. Until a model is installed the rest of the app works
+normally; only dictation is unavailable.
+
+
+5. APPLICATION-MENU ENTRY (optional)
+-------------------------------------------------------------------------
+
+A .desktop entry needs an absolute path, and the zip cannot know where you
+extracted it, so the launcher writes the entry for you:
+
+    ./pixelmarch --install-desktop      # menu entry + icon, for your user only
+    ./pixelmarch --uninstall-desktop    # removes both
+
+Re-run --install-desktop after moving the folder — the path is baked into the
+entry. The shipped pixelmarch.desktop is the template it fills in; it is not
+usable as-is.
+
+
+6. AUTOSTART
+-------------------------------------------------------------------------
+
+The menu entry above is separate from "Start on login" inside the app. That
+setting writes its own ~/.config/autostart/pixelmarch.desktop and rewrites it
+on every launch with the binary's current path. Toggle it in the app rather
+than editing that file by hand.
+
+
+7. UNINSTALL
+-------------------------------------------------------------------------
+
+    ./pixelmarch --uninstall-desktop             # menu entry + icon, if added
+    rm -rf ~/pixelmarch-@VERSION@-linux-@ARCH@   # program + all your settings
+    rm -f ~/.config/autostart/pixelmarch.desktop # only if you enabled autostart
+
+Nothing else is written anywhere on the system. --install-desktop also refreshes
+your desktop-entry cache (~/.local/share/applications/mimeinfo.cache), which is
+a file your desktop maintains for every menu entry you have; --uninstall-desktop
+regenerates it, and deletes it only when removing our entry leaves that folder
+with no entries at all.
+
+--install-desktop creates ~/.local/share/applications and the icon folders
+~/.local/share/icons/hicolor/256x256/apps if they are not already there.
+--uninstall-desktop removes each of those folders again, along with the empty
+icon folders above them (~/.local/share/icons and the hicolor levels inside it,
+including the 128x128 folders an older version of this launcher used), but only
+while each one is empty: a folder holding any other program's files is left
+exactly as it was.
+
+
+8. LEGAL
+-------------------------------------------------------------------------
+
+LICENSE.txt                 end user license agreement
+THIRD-PARTY-LICENSES.txt    licenses of the bundled open-source components

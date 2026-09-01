@@ -1,0 +1,158 @@
+[package]
+name = "pixelmarch"
+version = "0.1.37"
+description = "PixelMarch - multi-workspace terminal manager"
+authors = ["PixelMarch"]
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+# The `_lib` suffix may seem redundant but it is necessary
+# to make the lib name unique and wouldn't conflict with the bin name.
+# This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
+name = "pixelmarch_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[features]
+# Voice-To-Text is ON by default (mission: it must actually work out of the box).
+# The build host here has libclang + CMake + AVX2, so whisper-rs/cpal compile
+# fine. If you build on a box without them, disable it: `--no-default-features`.
+default = ["voice"]
+# Real dictation (mic capture + Whisper STT). Requires libclang + CMake to build.
+# regex is now an unconditional dep (the macro engine needs it), so it is no
+# longer gated behind `voice`.
+voice = ["dep:cpal", "dep:whisper-rs"]
+
+# Tauri decides dev-vs-production at COMPILE time, from this feature: `tauri`'s
+# build script sets `cfg(dev)` to `!custom-protocol`. The tauri CLI passes it on
+# `tauri build`; a bare `cargo build --release` does NOT — and the result is a
+# release binary that ignores the embedded `dist/` and tries to load devUrl
+# (http://localhost:1420), i.e. a window saying "Could not connect to localhost".
+# scripts/run.sh and the in-app updater both build with plain cargo, so they have
+# to ask for it by name.
+custom-protocol = ["tauri/custom-protocol"]
+# What `tauri build --debug` adds on top: the webview's inspector. Only useful in
+# a build you are debugging, so it is not in `default`.
+devtools = ["tauri/devtools"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["protocol-asset", "tray-icon"] }
+tauri-plugin-opener = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+portable-pty = "0.9.0"
+uuid = { version = "1.23.4", features = ["v4"] }
+base64 = "0.22.1"
+tauri-plugin-notification = "2.3.3"
+tauri-plugin-global-shortcut = "2.3.2"
+tauri-plugin-single-instance = "2.4.2"
+tauri-plugin-clipboard-manager = "2"
+
+# Screenshot capture (primary monitor) + timestamped filenames.
+xcap = "0.4"
+# Same version xcap pulls in — used directly to pre-process shots before OCR
+# (colored terminal text needs a contrast pass or the engine only sees white).
+image = { version = "0.25", default-features = false, features = ["png"] }
+chrono = "0.4"
+
+# BigBrain: tiny embedded HTTP memory service.
+tiny_http = "0.12"
+
+# HTTP client + hash. Both used to belong to the self-updater; that is gone (the
+# app updates with `git pull` + a rebuild, see src/update.rs), and these now serve
+# the licensing client (src/license.rs, which POSTs and parses JSON — hence the
+# `json` feature) and the Whisper model installer (src/voice/models.rs, which
+# downloads a model and checks its published sha256 before using it).
+ureq = { version = "2", features = ["json"] }
+sha2 = "0.10"
+
+# Licensing (src/license.rs): verify Ed25519 entitlement tokens offline against
+# the public key baked into the binary. Verification only -- the app never has a
+# signing key. Same major version as server/ so the two agree on the format.
+# Deliberately NOT a JWT library: the format has no `alg` header, so there is no
+# algorithm agility to get wrong.
+ed25519-dalek = "2"
+
+# System-monitor pane: CPU/mem/net cross-platform; GPU is NVIDIA-only via nvml.
+sysinfo = "0.33"
+nvml-wrapper = "0.10"
+
+# Voice-To-Text (VoiceMarch fold-in). Gated behind the `voice` feature, which is
+# ON by default (see [features] above): whisper-rs needs libclang + CMake at build
+# time, so a box without them must build with `--no-default-features`.
+cpal = { version = "0.15", optional = true }
+whisper-rs = { version = "0.16", optional = true }
+
+# Used by both the Voice fold-in and the KeyForge macro engine (window-title /
+# clipboard regex conditions), so it is unconditional now.
+regex = "1"
+
+# KeyForge macro engine (src/macros/**): scripted-expression eval (rhai),
+# OS input injection (enigo), async executor + cancellation (tokio/tokio-util),
+# clipboard (arboard), desktop notifications (notify-rust), structured logs.
+rhai = { version = "1.25", features = ["serde", "sync"] }
+enigo = "0.6"
+arboard = "3.6"
+rfd = "0.17"
+notify-rust = "4.18"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "sync", "process", "test-util"] }
+tokio-util = "0.7"
+tracing = "0.1"
+
+# Windows-native backends for the macro engine (window mgmt, audio device
+# switching via IPolicyConfig, USB enumeration, pixel/shell/sound). Mirrors the
+# feature set KeyForge relies on. Non-windows falls back to the module stubs.
+[target."cfg(windows)".dependencies]
+windows = { version = "0.62", features = [
+    "Win32_Foundation",
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_Graphics_Gdi",
+    "Win32_Graphics_Dwm",
+    "Win32_System_Threading",
+    "Win32_UI_Input_KeyboardAndMouse",
+    "Win32_Media_Audio",
+    "Win32_Media_Audio_Endpoints",
+    "Win32_System_Com",
+    "Win32_System_Com_StructuredStorage",
+    "Win32_System_Variant",
+    "Win32_UI_Shell",
+    "Win32_UI_Shell_PropertiesSystem",
+    "Win32_Devices_DeviceAndDriverInstallation",
+    # Screenshot OCR (src/ocr.rs): the built-in WinRT engine, so the portable
+    # exe ships no tesseract binary or language data of its own.
+    "Foundation",
+    "Media_Ocr",
+    "Graphics_Imaging",
+    "Storage_Streams",
+] }
+windows-core = "0.62"
+
+# Unix process-group signalling for the PTY tree-kill (kill_tree in src/pty):
+# killpg(SIGTERM/SIGKILL) reaps grandchildren the plain child.kill() would orphan.
+# Unix-target-gated, so it never touches the Windows build.
+[target."cfg(not(windows))".dependencies]
+nix = { version = "0.29", features = ["signal", "process"] }
+# X11 screen/pointer queries for pixel_at + cursor_pos (src/macros/sys.rs).
+# X11-only; Wayland/headless returns a clear Err. Pulls no Windows code.
+# `randr` is REQUIRED: without it `x11rb::protocol::randr` does not exist and
+# macros/window.rs monitors() falls back to one MonitorInfo per X screen root,
+# so a multi-monitor Linux desktop reports as a single display.
+x11rb = { version = "0.13", features = ["randr"] }
+
+# Wayland screen capture (src/wayland_shot.rs): KWin's ScreenShot2 and the
+# xdg-desktop-portal Screenshot portal are both D-Bus APIs. xcap already pulls
+# this exact crate in on Linux, so it costs no extra build.
+[target."cfg(target_os = \"linux\")".dependencies]
+dbus = "0.9"
+
+[profile.release]
+opt-level = "s"   # optimize for size — it's a portable exe you ship around
+lto = true
+codegen-units = 1
+strip = true
+panic = "abort"
+

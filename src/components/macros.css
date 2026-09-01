@@ -1,0 +1,217 @@
+/* KeyForge visual macro editor + Devices tab — PixelMarch-integrated styling.
+   Reuses the app's CSS custom properties (var(--panel) etc.) so light/dark
+   themes and the rest of the app stay consistent. This is NOT KeyForge egui;
+   it is the React reimplementation of editor.rs / forms.rs UX. */
+
+/* ---------------------------------------------------------------- shared */
+.mac-accent { color: var(--accent); }
+.mac-mono { font-family: "Cascadia Code", "MesloLGS Nerd Font Mono", Hack, ui-monospace, Menlo, Consolas, monospace; }
+
+/* Tab bar shared by the Automation hub (Hotkeys / Macros / Devices) */
+.mac-tabs { display: flex; gap: 2px; padding: 8px 10px 0; border-bottom: 1px solid var(--border); }
+.mac-tab {
+  padding: 7px 14px; font-size: 12px; font-weight: 600; letter-spacing: .3px;
+  color: var(--muted); background: transparent; border: none; border-bottom: 2px solid transparent;
+  cursor: pointer; border-radius: 5px 5px 0 0;
+}
+.mac-tab:hover { color: var(--text); background: var(--panel-2); }
+.mac-tab.active { color: var(--text); border-bottom-color: var(--accent); }
+
+/* ------------------------------------------------------- macro library */
+.mac-lib { display: flex; flex-direction: column; height: 100%; flex: 1; width: 100%; min-width: 0; }
+.mac-lib-toolbar { display: flex; gap: 8px; align-items: center; padding: 10px 12px; border-bottom: 1px solid var(--border); }
+.mac-lib-list { flex: 1; overflow-y: auto; padding: 6px; }
+.mac-lib-row {
+  display: flex; align-items: center; gap: 10px; padding: 9px 11px; border-radius: 6px; cursor: pointer;
+  border: 1px solid transparent;
+}
+.mac-lib-row:hover { background: var(--panel-2); }
+.mac-lib-row .mac-lib-name { flex: 1; font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mac-lib-row .mac-lib-desc { font-size: 11px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mac-lib-actions { display: flex; gap: 6px; opacity: 0; transition: opacity .1s; }
+.mac-lib-row:hover .mac-lib-actions { opacity: 1; }
+
+/* Generic buttons */
+.mac-btn {
+  font-size: 12px; padding: 6px 11px; border-radius: 6px; cursor: pointer;
+  background: var(--panel-2); color: var(--text); border: 1px solid var(--border);
+}
+.mac-btn:hover { border-color: var(--accent); }
+.mac-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+.mac-btn.primary:hover { filter: brightness(1.1); }
+.mac-btn.danger { background: #5a2a2a; color: #eaa; border-color: #6a3333; }
+.mac-btn.danger:hover { filter: brightness(1.15); }
+.mac-btn.tiny { padding: 3px 8px; font-size: 11px; }
+.mac-btn.estop { background: #7a1f1f; color: #ffdede; border-color: #a33; font-weight: 700; }
+.mac-btn.estop:hover { background: #932525; }
+
+/* ---------------------------------------------------------- editor shell */
+.mac-editor { position: fixed; inset: 0; z-index: 130; display: flex; flex-direction: column; background: var(--bg); }
+.mac-editor-head {
+  display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--border);
+  background: var(--panel);
+}
+.mac-editor-head input.mac-name { font-size: 15px; font-weight: 700; background: transparent; border: none; color: var(--text); outline: none; min-width: 160px; }
+.mac-editor-head input.mac-name:focus { border-bottom: 1px solid var(--accent); }
+.mac-editor-body { flex: 1; display: flex; min-height: 0; }
+
+/* palette — left */
+.mac-palette { width: 232px; flex: 0 0 232px; border-right: 1px solid var(--border); display: flex; flex-direction: column; background: var(--panel); }
+.mac-palette-search { margin: 8px; }
+.mac-palette-list { flex: 1; overflow-y: auto; padding: 0 6px 8px; }
+.mac-cat { font-size: 10px; font-weight: 700; letter-spacing: .8px; color: var(--muted); padding: 10px 6px 4px; text-transform: uppercase; }
+.mac-pal-item {
+  display: flex; align-items: center; gap: 7px; padding: 6px 8px; font-size: 12px; border-radius: 5px; cursor: grab;
+  color: var(--text);
+}
+.mac-pal-item:hover { background: var(--panel-2); }
+.mac-pal-item .mac-pal-icon { width: 16px; text-align: center; opacity: .8; }
+
+/* canvas — center */
+.mac-canvas { flex: 1; overflow-y: auto; padding: 14px 16px 40px; min-width: 0; }
+.mac-canvas-empty { color: var(--muted); font-size: 13px; text-align: center; padding: 40px 0; }
+.mac-canvas-empty.drop { color: var(--accent); border: 2px dashed var(--accent); border-radius: 8px; margin: 8px; background: color-mix(in srgb, var(--accent) 8%, transparent); }
+
+/* inspector — right */
+.mac-inspector { width: 320px; flex: 0 0 320px; border-left: 1px solid var(--border); overflow-y: auto; padding: 14px; background: var(--panel); }
+.mac-inspector h4 { margin: 0 0 10px; font-size: 12px; letter-spacing: .4px; color: var(--muted); text-transform: uppercase; }
+
+/* ----------------------------------------------------------- blocks */
+.mac-block {
+  border: 1px solid var(--border); border-radius: 7px; margin: 4px 0; background: var(--panel);
+  box-shadow: 0 1px 2px rgba(0,0,0,.15);
+}
+.mac-block.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.mac-block.disabled { opacity: .45; }
+.mac-block.container { background: var(--panel-2); }
+.mac-block-head {
+  display: flex; align-items: center; gap: 8px; padding: 7px 9px; cursor: pointer; user-select: none;
+  font-size: 12.5px;
+}
+.mac-block-head .mac-grip { cursor: grab; color: var(--muted); font-size: 12px; }
+.mac-block-head .mac-block-title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mac-block-head .mac-block-kind { font-weight: 700; }
+.mac-block-head .mac-block-sum { color: var(--muted); font-weight: 400; margin-left: 6px; }
+.mac-slot { margin: 2px 0 6px 22px; border-left: 2px solid var(--border); padding-left: 8px; }
+.mac-slot-label { font-size: 10px; font-weight: 700; letter-spacing: .5px; color: var(--muted); text-transform: uppercase; padding: 4px 0 2px; }
+
+/* drop indicator — 4px is too thin to aim at, so an invisible pseudo-element
+   grows the hit box to ~14px without moving anything on the page. */
+.mac-drop { height: 4px; margin: 1px 0; border-radius: 3px; position: relative; }
+.mac-drop::before { content: ""; position: absolute; left: 0; right: 0; top: -5px; bottom: -5px; }
+.mac-drop.over { background: var(--accent); box-shadow: 0 0 6px var(--accent); }
+
+/* context menu */
+.mac-ctx { position: fixed; z-index: 140; background: var(--panel); border: 1px solid var(--border); border-radius: 7px; padding: 4px; min-width: 168px; box-shadow: 0 10px 40px rgba(0,0,0,.55); }
+.mac-ctx-item { display: flex; justify-content: space-between; gap: 16px; padding: 6px 9px; font-size: 12px; border-radius: 5px; cursor: pointer; color: var(--text); }
+.mac-ctx-item:hover { background: var(--accent); color: #fff; }
+.mac-ctx-item.disabled { opacity: .4; pointer-events: none; }
+.mac-ctx-sep { height: 1px; background: var(--border); margin: 4px 2px; }
+.mac-ctx-key { color: var(--muted); font-size: 11px; }
+.mac-ctx-item:hover .mac-ctx-key { color: #dfe; }
+
+/* ---------------------------------------------------------- param widgets */
+.mac-field { margin-bottom: 11px; }
+.mac-field > label { display: block; font-size: 11px; color: var(--muted); margin-bottom: 3px; }
+.mac-input, .mac-select, .mac-textarea {
+  width: 100%; box-sizing: border-box; background: var(--panel-2); color: var(--text);
+  border: 1px solid var(--border); border-radius: 5px; padding: 5px 7px; font-size: 12.5px;
+}
+.mac-textarea { resize: vertical; min-height: 54px; font-family: "Cascadia Code", "MesloLGS Nerd Font Mono", Hack, ui-monospace, monospace; }
+.mac-input:focus, .mac-select:focus, .mac-textarea:focus { outline: none; border-color: var(--accent); }
+.mac-row { display: flex; gap: 7px; align-items: center; }
+.mac-row > * { min-width: 0; }
+.mac-check { display: flex; align-items: center; gap: 6px; font-size: 12px; cursor: pointer; margin: 6px 0; }
+.mac-check input { accent-color: var(--accent); }
+
+/* fx (expression) toggle per Param */
+.mac-fx {
+  flex: 0 0 auto; width: 26px; height: 26px; border-radius: 5px; cursor: pointer; font-size: 12px; font-style: italic;
+  font-weight: 700; background: var(--panel-2); color: var(--muted); border: 1px solid var(--border);
+}
+.mac-fx.on { background: var(--accent); color: #fff; border-color: var(--accent); }
+.mac-fx:hover { border-color: var(--accent); }
+
+/* condition editor */
+.mac-cond { border: 1px dashed var(--border); border-radius: 6px; padding: 8px; margin: 4px 0; background: var(--panel); }
+.mac-cond-group { border-left: 2px solid var(--accent); padding-left: 8px; margin-left: 2px; }
+
+/* position picker overlay */
+.mac-pick-overlay {
+  position: fixed; inset: 0; z-index: 200; background: rgba(0,0,0,.35);
+  display: flex; align-items: center; justify-content: center; cursor: crosshair;
+}
+.mac-pick-card { background: var(--panel); border: 1px solid var(--accent); border-radius: 10px; padding: 20px 26px; text-align: center; box-shadow: 0 10px 50px rgba(0,0,0,.6); }
+.mac-pick-count { font-size: 42px; font-weight: 800; color: var(--accent); }
+.mac-swatch { display: inline-block; width: 14px; height: 14px; border-radius: 3px; border: 1px solid var(--border); vertical-align: middle; margin-right: 5px; }
+
+/* validation warnings banner */
+.mac-warns { background: #4a3a1a; border: 1px solid #6a5320; color: #f0d79a; border-radius: 6px; padding: 8px 11px; margin: 0 0 10px; font-size: 12px; }
+.mac-warns ul { margin: 4px 0 0; padding-left: 18px; }
+
+/* ------------------------------------------- test run (play) status strip */
+.mac-btn.play { background: #1f5a2f; color: #dfffe6; border-color: #2f7a42; font-weight: 700; }
+.mac-btn.play:hover:not(:disabled) { background: #26703a; }
+.mac-btn:disabled { opacity: .45; cursor: default; }
+
+.mac-runbar {
+  flex: 0 0 auto; max-height: 190px; display: flex; flex-direction: column;
+  border-top: 1px solid var(--border); background: var(--panel);
+}
+.mac-runbar-head { display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-bottom: 1px solid var(--border); }
+.mac-run-state { font-size: 11px; color: var(--muted); }
+.mac-run-state.live { color: #6ed08a; animation: mac-run-pulse 1s ease-in-out infinite; }
+.mac-run-state.err { color: #e88; }
+@keyframes mac-run-pulse { 50% { opacity: .35; } }
+
+.mac-runbar-log { overflow-y: auto; padding: 4px 8px 8px; }
+.mac-run-item {
+  display: flex; align-items: baseline; gap: 8px; padding: 3px 4px; font-size: 12px; border-radius: 4px;
+}
+.mac-run-item:hover { background: var(--panel-2); }
+.mac-run-dot { flex: 0 0 auto; width: 7px; height: 7px; border-radius: 50%; background: var(--muted); align-self: center; }
+.mac-run-item.start .mac-run-dot { background: var(--accent); animation: mac-run-pulse 1s ease-in-out infinite; }
+.mac-run-item.ok .mac-run-dot { background: #4bbf6b; }
+.mac-run-item.skipped .mac-run-dot { background: #7a7a7a; }
+.mac-run-item.error .mac-run-dot { background: #e05555; }
+.mac-run-idx { flex: 0 0 auto; min-width: 18px; text-align: right; color: var(--muted); font-size: 11px; font-family: "Cascadia Code", "MesloLGS Nerd Font Mono", Hack, ui-monospace, monospace; }
+.mac-run-sum { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mac-run-item.skipped .mac-run-sum { color: var(--muted); text-decoration: line-through; }
+.mac-run-err { color: #f2b0b0; font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ------------------------------------------------------------- devices */
+.mac-devices { display: flex; flex-direction: column; height: 100%; }
+.mac-dev-toolbar { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 12px; color: var(--muted); }
+.mac-dev-body { flex: 1; overflow-y: auto; padding: 10px 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.mac-dev-col h4 { margin: 0 0 8px; font-size: 12px; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); }
+.mac-dev-item { display: flex; align-items: center; gap: 9px; padding: 7px 9px; border: 1px solid var(--border); border-radius: 6px; margin-bottom: 6px; font-size: 12px; background: var(--panel); }
+.mac-dev-item.default { border-color: var(--accent); }
+.mac-dev-dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; }
+.mac-dev-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mac-dev-meta { color: var(--muted); font-size: 11px; font-family: "Cascadia Code", "MesloLGS Nerd Font Mono", Hack, ui-monospace, monospace; }
+.mac-dev-badge { font-size: 9.5px; font-weight: 700; letter-spacing: .4px; padding: 1px 6px; border-radius: 4px; background: var(--accent); color: #fff; }
+
+@media (max-width: 620px) { .mac-dev-body { grid-template-columns: 1fr; } }
+
+/* ------------------------------------------------------------ key picker */
+.kp-record { flex: 1; text-align: left; cursor: pointer; }
+.mac-fx.kp-more { letter-spacing: -1px; }
+.kp-warn { font-size: 11px; color: #e0a860; margin: -6px 0 8px; }
+
+.kp-panel {
+  position: fixed; z-index: 150; width: 340px; max-height: 380px; display: flex; flex-direction: column; gap: 7px;
+  background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 8px;
+  box-shadow: 0 12px 44px rgba(0,0,0,.6);
+}
+.kp-mods { display: flex; align-items: center; gap: 5px; }
+.kp-preview { margin-left: auto; font-size: 11px; color: var(--muted); }
+.kp-list { flex: 1; overflow-y: auto; }
+.kp-keys { display: flex; flex-wrap: wrap; gap: 4px; padding: 0 2px 4px; }
+.kp-key {
+  background: var(--panel-2); color: var(--text); border: 1px solid var(--border); border-radius: 5px;
+  padding: 3px 7px; font-size: 11.5px; cursor: pointer; white-space: nowrap;
+}
+.kp-key:hover { border-color: var(--accent); }
+.kp-key.sel { background: var(--accent); color: #fff; border-color: var(--accent); }
+.kp-empty { color: var(--muted); font-size: 12px; padding: 10px 4px; }
+.kp-foot { font-size: 10.5px; color: var(--muted); border-top: 1px solid var(--border); padding-top: 6px; }

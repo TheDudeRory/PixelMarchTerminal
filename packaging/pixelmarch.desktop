@@ -1,0 +1,28 @@
+# TEMPLATE — not usable as-is. A .desktop entry needs an absolute Exec=, and a
+# portable zip cannot know where you will extract it, so the launcher fills the
+# path in for you:
+#
+#     ./pixelmarch --install-desktop      (--uninstall-desktop removes it)
+#
+# That writes the finished entry to ~/.local/share/applications/pixelmarch.desktop
+# and drops the icon in ~/.local/share/icons/. These comment lines are stripped
+# on the way out. Re-run it if you move the folder.
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=PixelMarch
+GenericName=Terminal Manager
+Comment=Multi-workspace terminal manager with macros, hotkeys and voice input
+Exec=@EXEC@
+Icon=@ICON@
+Terminal=false
+StartupNotify=true
+StartupWMClass=PixelMarch
+# NOT TerminalEmulator: PixelMarch embeds terminal sessions but is not a
+# terminal emulator, and that category makes it a candidate for the desktop's
+# default-terminal / "open in terminal" handler.
+# Exactly ONE main category: two of them make the app a candidate for two
+# menu sections, and desktop-file-validate warns that it "might appear more
+# than once in the application menu".
+Categories=Utility;
+Keywords=terminal;console;shell;tmux;macro;hotkey;

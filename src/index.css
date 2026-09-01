@@ -1,0 +1,71 @@
+:root {
+  color-scheme: dark;
+  --bg: #161616;
+  --panel: #1b1b1b;
+  --panel-2: #252525;
+  --border: #2a2a2a;
+  --text: #dddddd;
+  --muted: #888888;
+  --accent: #4c8bf5;
+}
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f4f4f5;
+  --panel: #e9e9ec;
+  --panel-2: #dcdce0;
+  --border: #c6c6cc;
+  --text: #1c1c20;
+  --muted: #5c5c66;
+  --accent: #2f6fdb;
+}
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+}
+body {
+  font-family: "Segoe UI", system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  overflow: hidden;
+}
+/* WebKitGTK paints <select> with the GTK theme — grey text on a white box — and
+   ignores the element's own background/color until appearance is opted out of.
+   That kills the native arrow too, so draw one; the !important is because most
+   selects carry an inline `background` shorthand that would otherwise blank it. */
+select {
+  -webkit-appearance: none;
+  appearance: none;
+  background-color: var(--panel-2);
+  color: var(--text);
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' fill='none' stroke='%23888888' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/></svg>") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 8px center !important;
+  background-size: 9px 6px !important;
+  padding-right: 24px;
+}
+:root[data-theme="light"] select {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' fill='none' stroke='%235c5c66' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/></svg>") !important;
+}
+/* The dropdown popup is a separate native surface — it needs its own colors. */
+select option {
+  background-color: var(--panel-2);
+  color: var(--text);
+}
+
+/* Reveal per-row actions on hover */
+.ws-row:hover .ws-actions {
+  display: flex !important;
+}
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+/* Update download bar with no Content-Length: the byte count is real but the
+   total is unknown, so the block slides instead of filling a fraction we would
+   have had to invent. See installProgressMessage in SettingsModal.tsx. */
+@keyframes pm-indeterminate {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(285%); }
+}

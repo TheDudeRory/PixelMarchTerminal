@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+    "composite": true,
+    "skipLibCheck": true,
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "allowSyntheticDefaultImports": true,
+
+    /* This project exists ONLY to type-check vite.config.ts. It must never EMIT:
+       a compiled vite.config.js in the repo root is loaded by vite in preference
+       to vite.config.ts, so a stale one silently replaces the whole real config
+       (that is how the @xterm/headless alias + the test block once vanished).
+       composite is required by the project reference in tsconfig.json and a
+       referenced project may not disable emit (TS6310), so the emit is sent to
+       the gitignored .tsbuild/ instead -- out of the repo root, where vite looks. */
+    "outDir": "./.tsbuild/node",
+    "tsBuildInfoFile": "./.tsbuild/tsconfig.node.tsbuildinfo"
+  },
+  "include": ["vite.config.ts"]
+}
