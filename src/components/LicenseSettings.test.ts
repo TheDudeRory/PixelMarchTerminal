@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { LicenseStatus } from "../lib/ipc";
 
 // LicenseSettings pulls in @tauri-apps/api through lib/ipc at import time;
-// nothing below invokes it (same stub as MacroEditor.test.ts).
+// nothing below invokes it (same stub as SwarmDialog.test.ts).
 vi.mock("@tauri-apps/api/core", () => ({ invoke: () => Promise.resolve(null) }));
 vi.mock("@tauri-apps/api/event", () => ({ listen: () => Promise.resolve(() => undefined) }));
 

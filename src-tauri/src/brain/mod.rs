@@ -1363,9 +1363,9 @@ const PREVIEW_LINES_PER_NOTE: usize = 12;
 const REPLACE_APPLY_LIMIT: usize = 200;
 
 /// A literal-substring or regex matcher, compiled ONCE and reused across every note of
-/// a bulk pass. `regex` is already an unconditional dependency of this crate (the macro
-/// engine needs it, Cargo.toml:79), so the regex mode costs no new dep — which is why
-/// it is offered at all: the motivating sweep (`1\.\d+\.\d+`) is a regex, not a literal.
+/// a bulk pass. `regex` is already an unconditional dependency of this crate, so the
+/// regex mode costs no new dep — which is why it is offered at all: the motivating
+/// sweep (`1\.\d+\.\d+`) is a regex, not a literal.
 enum Matcher {
     Literal(String),
     Re(regex::Regex),

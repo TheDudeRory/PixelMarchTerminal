@@ -83,8 +83,6 @@ pkg_for() { # pkg_for <soname> -> package name for $family (empty if unknown)
       case $family in arch) echo gtk3 ;; debian) echo libgtk-3-0 ;; fedora) echo gtk3 ;; esac ;;
     libsoup-3.0.so.*)
       case $family in arch) echo libsoup3 ;; debian) echo libsoup-3.0-0 ;; fedora) echo libsoup3 ;; esac ;;
-    libasound.so.*)
-      case $family in arch) echo alsa-lib ;; debian) echo libasound2t64 ;; fedora) echo alsa-lib ;; esac ;;
     libgdk_pixbuf-2.0.so.*)
       case $family in arch) echo gdk-pixbuf2 ;; debian) echo libgdk-pixbuf-2.0-0 ;; fedora) echo gdk-pixbuf2 ;; esac ;;
     libcairo.so.*)
@@ -138,8 +136,8 @@ if [ ! -x "$BIN" ]; then
 fi
 
 # --- 2. the extract directory must be writable --------------------------------
-# Everything the app persists (settings, macros, hotkeys, screenshots, brain
-# notes, downloaded voice models, the webview cache) lives next to the binary.
+# Everything the app persists (settings, screenshots, brain notes, the webview
+# cache) lives next to the binary.
 if ! ( : > "$HERE/.pixelmarch-write-test" ) 2>/dev/null; then
   problems=$((problems + 1))
   warn "the folder $HERE is not writable by you."

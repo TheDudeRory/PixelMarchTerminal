@@ -3,7 +3,7 @@
 Multi-workspace terminal manager. Tauri 2 (Rust) + React/Vite frontend.
 
 Runs from source: the runtime profile is `<repo>/data` (see `src-tauri/src/state.rs`),
-so models, workspaces, hotkeys, macros and screenshots all live in this checkout.
+so config, license, brain, screenshots and logs all live in this checkout.
 
 ## Build & run
 
@@ -15,14 +15,12 @@ bash scripts/run.sh --check     # report toolchain + build state only
 ```
 
 Needs `git`, `node`, `npm`, `cargo`. Linux system deps: `bash scripts/linux-setup.sh`
-(add `--voice` for the whisper/cpal build deps — the `voice` feature is on by default;
-build with `--no-default-features` to skip libclang + CMake).
 
 Packaging: `bash scripts/package-linux.sh` emits `dist-zip/pixelmarch-<version>-linux-<arch>.zip`.
 
 ## Layout
 
-- `src-tauri/` — Rust: PTY, host sidecar, macros (KeyForge), voice, OCR, screenshots, BigBrain, licensing client
+- `src-tauri/` — Rust: PTY, host sidecar, OCR, screenshots, BigBrain, licensing client
 - `src/` — React frontend (xterm.js, zustand)
 - `scripts/` — build/run/package
 - `packaging/`, `legal/` — inputs `scripts/package-linux.sh` stages into the zip

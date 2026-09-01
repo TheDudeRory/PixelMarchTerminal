@@ -17,7 +17,7 @@ vi.mock("@tauri-apps/api/core", () => ({ invoke: () => Promise.resolve(null) }))
 vi.mock("@tauri-apps/api/event", () => ({ listen: () => Promise.resolve(() => undefined) }));
 vi.mock("@tauri-apps/api/webview", () => ({ getCurrentWebview: () => ({ setZoom: () => Promise.resolve() }) }));
 
-const { stateFileMissing, shouldWelcome, isLinux } = await import("./FirstRun");
+const { stateFileMissing, shouldWelcome } = await import("./FirstRun");
 
 describe("stateFileMissing", () => {
   it("treats only an absent (or empty) state file as fresh", () => {
@@ -55,17 +55,5 @@ describe("shouldWelcome", () => {
   it("requires the file check to agree with the store flag", () => {
     expect(shouldWelcome({ freshProfile: true, fileMissing: false, dismissed: false })).toBe(false);
     expect(shouldWelcome({ freshProfile: false, fileMissing: true, dismissed: false })).toBe(false);
-  });
-});
-
-describe("isLinux", () => {
-  it("detects the platforms whose optional-package advice applies", () => {
-    expect(isLinux("Linux x86_64", "Mozilla/5.0 (X11; Linux x86_64)")).toBe(true);
-    expect(isLinux(undefined, "Mozilla/5.0 (X11; Ubuntu)")).toBe(true);
-    expect(isLinux("Win32", "Mozilla/5.0 (Windows NT 10.0)")).toBe(false);
-    expect(isLinux("MacIntel", "Mozilla/5.0 (Macintosh)")).toBe(false);
-    expect(isLinux(undefined, undefined)).toBe(false);
-    // Android reports "Linux" but is not a desktop session — no pactl/xdotool story.
-    expect(isLinux("Linux armv8l", "Mozilla/5.0 (Linux; Android 14)")).toBe(false);
   });
 });

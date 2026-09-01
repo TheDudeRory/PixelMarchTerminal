@@ -5,9 +5,7 @@ import { loadState } from "../lib/ipc";
 import { overlay } from "../lib/uiStyles";
 
 // One-time welcome for a genuinely fresh install (someone who just unzipped the
-// app). It exists because on Linux several features degrade silently when an
-// optional package is missing. Everything else the app can explain in place;
-// that one costs you a confusing first ten minutes.
+// app). Everything else the app can explain in place.
 
 /** True when there is no `pixelmarch.json` in the app's data/ folder. `raw` is what the
  *  Rust `load_state` command returned: null = the file does not exist. */
@@ -31,14 +29,6 @@ export function shouldWelcome({ freshProfile, fileMissing, dismissed }: WelcomeI
   return freshProfile && fileMissing && !dismissed;
 }
 
-/** Linux is the only platform with the optional-package story below; on Windows
- *  those rows would be nonsense. */
-export function isLinux(platform: string | undefined, userAgent: string | undefined): boolean {
-  const hay = `${platform ?? ""} ${userAgent ?? ""}`.toLowerCase();
-  if (hay.includes("android")) return false;
-  return hay.includes("linux") || hay.includes("x11");
-}
-
 const card: CSSProperties = {
   background: "var(--panel)",
   border: "1px solid var(--border)",
@@ -52,10 +42,6 @@ const card: CSSProperties = {
 };
 const h = { margin: "0 0 6px", fontSize: 18, color: "var(--text)" } as CSSProperties;
 const sub = { margin: "0 0 16px", fontSize: 12.5, color: "var(--muted)", lineHeight: 1.5 } as CSSProperties;
-const sectionTitle: CSSProperties = {
-  margin: "0 0 4px", fontSize: 11, fontWeight: 700, letterSpacing: 0.5, color: "var(--muted)",
-};
-const body: CSSProperties = { margin: 0, fontSize: 12.5, color: "var(--text)", lineHeight: 1.55 };
 const dep: CSSProperties = { fontSize: 12, color: "var(--muted)", lineHeight: 1.6 };
 const primary: CSSProperties = {
   padding: "6px 14px", background: "var(--accent)", color: "#fff",
@@ -85,36 +71,17 @@ export default function FirstRun() {
 
   if (!shouldWelcome({ freshProfile, fileMissing: fileMissing === true, dismissed })) return null;
 
-  const linux = typeof navigator === "undefined"
-    ? false
-    : isLinux(navigator.platform, navigator.userAgent);
-
   return (
     <div style={overlay} {...backdrop}>
       <div style={card} onClick={(e) => e.stopPropagation()}>
         <h2 style={h}>Welcome to PixelMarch</h2>
         <p style={sub}>
           A multi-workspace terminal manager. Split panes, keep several workspaces
-          of terminals alive at once, and drive them with global hotkeys and macros.
+          of terminals alive at once.
           Everything it saves — layout, profiles, settings — lives in
           {" "}<code>data/pixelmarch.json</code> inside the app's own source folder,
           so the whole install stays in one directory you can move or delete.
         </p>
-
-        {linux && (
-          <div style={{ marginBottom: 14 }}>
-            <div style={sectionTitle}>OPTIONAL LINUX PACKAGES</div>
-            <p style={body}>
-              PixelMarch runs without these; each one only switches off the feature
-              next to it, with an error rather than silence.
-            </p>
-            <ul style={{ ...dep, margin: "6px 0 0", paddingLeft: 18 }}>
-              <li><code>pulseaudio</code> / <code>pactl</code> — per-app volume macros and muting output while dictating</li>
-              <li><code>xdotool</code> / <code>libxdo</code> — synthetic keyboard and mouse input from macros</li>
-              <li><b>X11 or XWayland</b> — window and pixel macros are X11-only; under Wayland the app already asks for the X11 backend</li>
-            </ul>
-          </div>
-        )}
 
         <p style={{ ...dep, margin: "0 0 16px" }}>
           Press <b>Ctrl+/</b> any time for the shortcut reference, or{" "}

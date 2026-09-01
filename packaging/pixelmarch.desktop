@@ -12,7 +12,7 @@ Type=Application
 Version=1.0
 Name=PixelMarch
 GenericName=Terminal Manager
-Comment=Multi-workspace terminal manager with macros, hotkeys and voice input
+Comment=Multi-workspace terminal manager
 Exec=@EXEC@
 Icon=@ICON@
 Terminal=false
@@ -25,4 +25,4 @@ StartupWMClass=PixelMarch
 # menu sections, and desktop-file-validate warns that it "might appear more
 # than once in the application menu".
 Categories=Utility;
-Keywords=terminal;console;shell;tmux;macro;hotkey;
+Keywords=terminal;console;shell;tmux;
