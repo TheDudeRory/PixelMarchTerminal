@@ -28,8 +28,7 @@ fn main() {
     //
     // CONSEQUENCE: X11 or XWayland is REQUIRED — on a pure-Wayland system with
     // no XWayland the app cannot start. Set GDK_BACKEND yourself to override
-    // (both are only applied when unset). macros/window.rs and macros/sys.rs are
-    // X11-only for the same reason. See docs/linux.md.
+    // (both are only applied when unset). See docs/linux.md.
     #[cfg(target_os = "linux")]
     {
         if std::env::var_os("GDK_BACKEND").is_none() {

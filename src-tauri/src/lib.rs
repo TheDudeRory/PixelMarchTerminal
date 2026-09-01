@@ -1,9 +1,8 @@
 mod brain;
 mod host;
 mod hostclient;
-mod hotkeys;
 mod license;
-pub mod macros;
+mod notify;
 mod ocr;
 mod pty;
 mod screenshot;
@@ -203,9 +202,8 @@ fn toggle_main_window(app: &tauri::AppHandle) {
     }
 }
 
-/// Default app-level global shortcuts. These two are owned by lib.rs (distinct
-/// from the user's Global Hotkeys in the `hotkeys` module) and are now editable
-/// from the Keybinds settings category via `app_shortcuts_get`/`app_shortcuts_set`.
+/// Default app-level global shortcuts. Owned by lib.rs and editable from the
+/// Keybinds settings category via `app_shortcuts_get`/`app_shortcuts_set`.
 const SCREENSHOT_SHORTCUT: &str = "CmdOrCtrl+Alt+S";
 const SUMMON_SHORTCUT: &str = "CmdOrCtrl+Alt+Backquote";
 
@@ -282,8 +280,8 @@ pub fn run() {
 /// self-run — runs the same app with the main window offscreen+hidden and
 /// without the desktop furniture: no single-instance lock (a self-run must
 /// start while a GUI is already up, not focus the other window and exit), no
-/// tray, no global shortcuts (a summon hotkey would unhide the hidden window,
-/// and user hotkeys would fire macros in the background). The webview runs
+/// tray, no global shortcuts (a summon shortcut would unhide the hidden
+/// window). The webview runs
 /// exactly as normal — that's where the swarm's React hooks live, and they
 /// orchestrate the mission; swarmLaunch.ts exits the process when it is done.
 fn run_app(headless: bool) {
@@ -326,13 +324,7 @@ fn run_app(headless: bool) {
                     let pressed =
                         event.state == tauri_plugin_global_shortcut::ShortcutState::Pressed;
                     if pressed {
-                        // Emergency stop first (safety): if this combo (or one of
-                        // its modifier supersets) is the estop, cancel all macros +
-                        // release held input, and swallow the event.
-                        if hotkeys::handle_estop(app, shortcut) {
-                            return;
-                        }
-                        // The screenshot hotkey captures every monitor to its
+                        // The screenshot shortcut captures every monitor to its
                         // own file; every other shortcut is summon/hide. The
                         // screenshot combo is read live so a rebind takes effect.
                         let screenshot_combo = app_shortcuts_cell().lock().unwrap().screenshot.clone();
@@ -351,8 +343,8 @@ fn run_app(headless: bool) {
                                     let _ = app.emit("screenshot-error", e);
                                 }
                             });
-                        } else if !hotkeys::dispatch(app, shortcut) {
-                            // Not a user-configured Global Hotkey: it's the summon/hide toggle.
+                        } else {
+                            // Not the screenshot shortcut: it's the summon/hide toggle.
                             toggle_main_window(app);
                         }
                     }
@@ -373,7 +365,7 @@ fn run_app(headless: bool) {
             // the window before `app.manage(client)` that the next comment guards.
             brain::start_index_watch();
             // Connect to (or launch) the detached PTY host and register managed
-            // state FIRST, before the slower inits below (hotkeys).
+            // state FIRST, before the slower inits below.
             // The webview can start loading and invoke pty_open the moment the
             // window appears; if manage() runs after those slow inits we race and
             // pty_open fails with "state not managed for field `client`".
@@ -388,7 +380,7 @@ fn run_app(headless: bool) {
             // failed sidecar.
             if !client.connected() {
                 eprintln!("terminal host failed to start — terminals will not work");
-                let _ = macros::sys::notify(
+                let _ = notify::notify(
                     "PixelMarch",
                     "The terminal host failed to start, so terminals will not work. \
                      Quitting and reopening PixelMarch usually fixes it.",
@@ -404,9 +396,6 @@ fn run_app(headless: bool) {
                 let _ = app.global_shortcut().register(app_sc.summon.as_str());
                 let _ = app.global_shortcut().register(app_sc.screenshot.as_str());
                 *app_shortcuts_cell().lock().unwrap() = app_sc;
-                // Register the user's Global Hotkeys (KeyForge fold-in) from the
-                // persisted hotkeys/default.json profile.
-                hotkeys::init(app.handle());
             }
             // asset: protocol scope. Config ships an EMPTY static scope (was
             // ["**"] — the webview could read ANY file on disk via asset://).
@@ -447,12 +436,6 @@ fn run_app(headless: bool) {
             screenshot::screenshot_ocr,
             screenshot::screenshot_retention_get, screenshot::screenshot_retention_set,
             screenshot::screenshot_protect,
-            hotkeys::hotkeys_list, hotkeys::hotkeys_save, hotkeys::hotkeys_set_estop,
-            hotkeys::macros_list, hotkeys::macros_run, hotkeys::macros_stop_all,
-            hotkeys::macros_get, hotkeys::macros_save, hotkeys::macros_delete,
-            hotkeys::macros_test_run, hotkeys::macros_test_step, hotkeys::macros_test_cancel,
-            hotkeys::devices_audio, hotkeys::devices_usb,
-            hotkeys::devices_audio_sessions, hotkeys::set_app_volume,
             app_shortcuts_get, app_shortcuts_set,
             shells::detect_shells,
             sysmon::sysinfo_snapshot,
@@ -624,7 +607,7 @@ pub fn run_swarm_headless(profile: &str, prompt: &str) -> ! {
         Ok(x) => x,
         Err(e) => {
             eprintln!("pixelmarch --swarm: {e}");
-            let _ = macros::sys::notify("PixelMarch", &e);
+            let _ = notify::notify("PixelMarch", &e);
             std::process::exit(2);
         }
     };
@@ -655,7 +638,7 @@ fn swarm_headless_request() -> Option<HeadlessSwarmRequest> {
 #[tauri::command]
 fn headless_fail(msg: String) {
     eprintln!("pixelmarch --swarm: {msg}");
-    let _ = macros::sys::notify("PixelMarch", &msg);
+    let _ = notify::notify("PixelMarch", &msg);
     // Let stderr drain before the process dies.
     std::thread::sleep(std::time::Duration::from_millis(300));
     std::process::exit(1);

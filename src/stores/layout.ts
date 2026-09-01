@@ -191,7 +191,6 @@ interface LayoutState {
   // Category the Settings modal should open on (null = keep whatever it showed
   // last). Lets another surface deep-link into a category.
   settingsCategory: string | null;
-  hotkeysOpen: boolean; // Global Hotkeys menu (task-4)
   bigBrainOpen: boolean;
   galleryOpen: boolean; // screenshot gallery overlay
   swarmOpen: boolean;
@@ -209,7 +208,6 @@ interface LayoutState {
   quitOpen: boolean;
   toasts: Toast[];
   openSettings(open: boolean, category?: string): void;
-  openHotkeys(open: boolean): void;
   openBigBrain(open: boolean): void;
   openGallery(open: boolean): void;
   openSwarm(open: boolean): void;
@@ -345,7 +343,6 @@ export const useLayout = create<LayoutState>()(subscribeWithSelector((set, get) 
   keymap: DEFAULT_KEYMAP,
   settingsOpen: false,
   settingsCategory: null,
-  hotkeysOpen: false,
   bigBrainOpen: false,
   galleryOpen: false,
   swarmOpen: false,
@@ -360,7 +357,6 @@ export const useLayout = create<LayoutState>()(subscribeWithSelector((set, get) 
   toasts: [],
 
   openSettings: (open, category) => set({ settingsOpen: open, settingsCategory: open ? category ?? null : null }),
-  openHotkeys: (open) => set({ hotkeysOpen: open }),
   setKeybind: (action, combo) => set((s) => ({ keymap: { ...s.keymap, [action]: combo } })),
   resetKeymap: () => set({ keymap: DEFAULT_KEYMAP }),
   openBigBrain: (open) => set({ bigBrainOpen: open }),

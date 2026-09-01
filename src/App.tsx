@@ -8,7 +8,6 @@ import LayoutView from "./components/layout/LayoutView";
 import { HelpOverlay, ConfirmDialog, ScreenshotGalleryOverlay, FirstRunOverlay } from "./components/Overlays";
 import Palette from "./components/Palette";
 import ProfileManager from "./components/ProfileManager";
-import HotkeyManager from "./components/HotkeyManager";
 import SettingsModal from "./components/SettingsModal";
 import BigBrain from "./components/BigBrain";
 import SwarmDialog from "./components/SwarmDialog";
@@ -133,11 +132,6 @@ function comboLookup(keymap: Keymap): Map<string, string> {
 
 function handleKey(e: KeyboardEvent) {
   const s = useLayout.getState();
-  const { ctrlKey: ctrl, altKey: alt, shiftKey: shift } = e;
-
-  // Hotkey manager toggle is not part of the editable keymap yet (no default
-  // entry to edit); kept hardcoded until it's added to DEFAULT_KEYMAP.
-  if (ctrl && alt && !shift && e.code === "KeyH") return e.preventDefault(), s.openHotkeys(!s.hotkeysOpen);
 
   const combo = eventToCombo(e);
   if (combo) {
@@ -149,7 +143,6 @@ function handleKey(e: KeyboardEvent) {
     if (s.searchOpen) s.openSearch(false);
     if (s.paletteOpen) s.openPalette(false);
     if (s.profileManagerOpen) s.openProfileManager(false);
-    if (s.hotkeysOpen) s.openHotkeys(false);
     if (s.settingsOpen) s.openSettings(false);
     if (s.bigBrainOpen) s.openBigBrain(false);
     if (s.quitOpen) s.setQuitOpen(false);
@@ -337,7 +330,6 @@ export default function App() {
       <ConfirmDialog />
       <Palette />
       <ProfileManager />
-      <HotkeyManager />
       <SettingsModal />
       <BigBrain />
       <SwarmDialog />
