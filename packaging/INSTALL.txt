@@ -2,10 +2,10 @@ PixelMarch @VERSION@ — Linux (@ARCH@)
 =========================================================================
 
 Download one zip, extract it, run it. There is no installer, and everything
-PixelMarch saves stays in the folder you extracted — settings, macros,
-hotkeys, screenshots, the webview cache, and any voice model you download.
+PixelMarch saves stays in the folder you extracted — settings, screenshots,
+the webview cache.
 Move the folder and the whole profile moves with it. Delete it and nothing is
-left behind (the one exception is the optional autostart entry, section 6).
+left behind (the one exception is the optional autostart entry, section 5).
 
 
 1. QUICK START
@@ -55,20 +55,19 @@ The binary links against your system's WebKitGTK; it cannot be bundled in a
 zip. Without these the app does not start:
 
   Arch / CachyOS / Manjaro
-    sudo pacman -S --needed webkit2gtk-4.1 gtk3 libsoup3 alsa-lib
+    sudo pacman -S --needed webkit2gtk-4.1 gtk3 libsoup3
 
   Debian 13+ / Ubuntu 24.04+
-    sudo apt install libwebkit2gtk-4.1-0 libgtk-3-0 libsoup-3.0-0 libasound2t64
+    sudo apt install libwebkit2gtk-4.1-0 libgtk-3-0 libsoup-3.0-0
 
   Fedora 40+
-    sudo dnf install webkit2gtk4.1 gtk3 libsoup3 alsa-lib
+    sudo dnf install webkit2gtk4.1 gtk3 libsoup3
 
 2c. X11 OR XWAYLAND
 
-PixelMarch forces GDK_BACKEND=x11 at startup and its window/pixel macros talk
-X11 directly — there is no Wayland path. On an X11 session you already have
-what you need. On a Wayland session (GNOME, KDE Plasma, Sway…) XWayland must
-be installed or no window opens:
+PixelMarch forces GDK_BACKEND=x11 at startup — there is no Wayland path. On
+an X11 session you already have what you need. On a Wayland session (GNOME,
+KDE Plasma, Sway…) XWayland must be installed or no window opens:
 
     Arch:    sudo pacman -S --needed xorg-xwayland
     Debian:  sudo apt install xwayland
@@ -83,36 +82,13 @@ Then log out and back in so the compositor starts it.
 Missing any of these still leaves a working app; only the named feature
 reports a failure instead of working.
 
-  pulseaudio / pactl        per-app volume macros, and mic mute while
-    Arch:   libpulse        push-to-talk is held
-    Debian: pulseaudio-utils
-    Fedora: pulseaudio-utils
-
-  xdotool (libxdo)          input injection — keystroke/click macros and
-    Arch:   xdotool         "type" style voice insertion
-    Debian: xdotool
-    Fedora: xdotool
-
   libayatana-appindicator   the system-tray icon. Loaded on demand; if it is
     Arch:   libayatana-appindicator      absent the app starts normally and
     Debian: libayatana-appindicator3-1   just has no tray icon.
     Fedora: libayatana-appindicator-gtk3
 
 
-4. VOICE MODELS ARE NOT INCLUDED
--------------------------------------------------------------------------
-
-Speech-to-text needs a Whisper model file (ggml-*.bin, 75 MB - 1.5 GB). None
-is shipped in this zip.
-
-Install one from inside the app: Settings > Voice-To-Text. It will tell you
-which model is expected and offer to download it, or let you browse to a
-ggml-*.bin you already have. The model lands next to the binary, in the same
-portable folder. Until a model is installed the rest of the app works
-normally; only dictation is unavailable.
-
-
-5. APPLICATION-MENU ENTRY (optional)
+4. APPLICATION-MENU ENTRY (optional)
 -------------------------------------------------------------------------
 
 A .desktop entry needs an absolute path, and the zip cannot know where you
@@ -126,7 +102,7 @@ entry. The shipped pixelmarch.desktop is the template it fills in; it is not
 usable as-is.
 
 
-6. AUTOSTART
+5. AUTOSTART
 -------------------------------------------------------------------------
 
 The menu entry above is separate from "Start on login" inside the app. That
@@ -135,7 +111,7 @@ on every launch with the binary's current path. Toggle it in the app rather
 than editing that file by hand.
 
 
-7. UNINSTALL
+6. UNINSTALL
 -------------------------------------------------------------------------
 
     ./pixelmarch --uninstall-desktop             # menu entry + icon, if added
@@ -157,7 +133,7 @@ while each one is empty: a folder holding any other program's files is left
 exactly as it was.
 
 
-8. LEGAL
+7. LEGAL
 -------------------------------------------------------------------------
 
 LICENSE.txt                 end user license agreement
