@@ -29,7 +29,7 @@ import { useSwarmDispatch } from "./lib/swarmDispatch";
 import { useSwarmNudge } from "./lib/swarmNudge";
 import { useSwarmRunaway } from "./lib/swarmRunaway";
 import { startTranscriptCapture } from "./components/panes/agentTranscript";
-import { detectShells, detachQuit, onVoiceTranscript, ptyWrite } from "./lib/ipc";
+import { detectShells, detachQuit } from "./lib/ipc";
 import type { ShellInfo } from "./lib/profiles";
 
 const isTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
@@ -297,21 +297,6 @@ export default function App() {
   useEffect(() => {
     useLayout.getState().clearVisibleUnread();
   }, [activeId, root]);
-
-  // Voice-To-Text: a finished dictation transcript (from the voice window) is
-  // written into the focused terminal's pty — dictation lands in the host
-  // terminal instead of at the OS cursor.
-  useEffect(() => {
-    if (!isTauri) return;
-    let unlisten: (() => void) | undefined;
-    onVoiceTranscript((text) => {
-      if (!text) return;
-      const s = useLayout.getState();
-      const pane = activeWorkspace(s).focusedPaneId;
-      if (pane) ptyWrite(pane, text).catch(() => {});
-    }).then((u) => (unlisten = u));
-    return () => unlisten?.();
-  }, []);
 
   // Headless panes: capture their transcript from the moment they SPAWN, and
   // forget it when they stop being headless. Doing it here rather than in the

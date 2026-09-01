@@ -5,10 +5,9 @@ import { loadState } from "../lib/ipc";
 import { overlay } from "../lib/uiStyles";
 
 // One-time welcome for a genuinely fresh install (someone who just unzipped the
-// app). It exists because two things are invisible otherwise: dictation needs a
-// speech model the user has to install, and several Linux features degrade
-// silently when an optional package is missing. Everything else the app can
-// explain in place; these two cost you a confusing first ten minutes.
+// app). It exists because on Linux several features degrade silently when an
+// optional package is missing. Everything else the app can explain in place;
+// that one costs you a confusing first ten minutes.
 
 /** True when there is no `pixelmarch.json` in the app's data/ folder. `raw` is what the
  *  Rust `load_state` command returned: null = the file does not exist. */
@@ -62,16 +61,11 @@ const primary: CSSProperties = {
   padding: "6px 14px", background: "var(--accent)", color: "#fff",
   border: "none", borderRadius: 5, cursor: "pointer", fontSize: 12.5,
 };
-const secondary: CSSProperties = {
-  padding: "6px 14px", background: "var(--border)", color: "var(--text)",
-  border: "none", borderRadius: 5, cursor: "pointer", fontSize: 12.5,
-};
 
 export default function FirstRun() {
   const freshProfile = useLayout((s) => s.freshProfile);
   const dismissed = useLayout((s) => s.settings.welcomeDismissed);
   const updateSettings = useLayout((s) => s.updateSettings);
-  const openSettings = useLayout((s) => s.openSettings);
   // undefined = we have not asked the backend yet.
   const [fileMissing, setFileMissing] = useState<boolean | undefined>(undefined);
 
@@ -106,23 +100,6 @@ export default function FirstRun() {
           {" "}<code>data/pixelmarch.json</code> inside the app's own source folder,
           so the whole install stays in one directory you can move or delete.
         </p>
-
-        <div style={{ marginBottom: 14 }}>
-          <div style={sectionTitle}>DICTATION NEEDS A SPEECH MODEL</div>
-          <p style={body}>
-            Voice-To-Text runs entirely offline, so no speech model ships with the
-            app — without one, holding the push-to-talk key records and then
-            produces nothing. Install one (about 80 MB) in one click from{" "}
-            <b>Settings → Voice-To-Text</b>.
-          </p>
-          <button
-            type="button"
-            style={{ ...secondary, marginTop: 8 }}
-            onClick={() => { dismiss(); openSettings(true, "voice"); }}
-          >
-            Open Voice-To-Text settings
-          </button>
-        </div>
 
         {linux && (
           <div style={{ marginBottom: 14 }}>
