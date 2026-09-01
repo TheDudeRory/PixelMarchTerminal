@@ -289,6 +289,13 @@ function SwarmDialogBody() {
       // shared task-bus note states the claim's real purpose (ownership) instead of collisions.
       for (const p of protocolNotes(project, url, parentProject(cfg.cwd), anyReset, cfg.hostDispatch, Math.max(1, cfg.builders) === 1))
         await brainSave(project, p.key, p.body);
+      // The on-mission-complete hook: newline-separated shell commands the host
+      // runs exactly ONCE, in the swarm's repo, when the mission hits 100% — the
+      // dispatcher's missionDone branch reads it off the feed (a watched key),
+      // never from any brief. Written unconditionally: an empty body means "no
+      // hook", and a key that always exists is read the same way as every other
+      // note.
+      await brainSave(project, "on-complete", cfg.onComplete ?? "");
       const s = useLayout.getState();
       // swarmResets stays as the legacy master flag (derived); swarmClearRoles carries
       // the explicit per-kind selection the reset watcher honours; swarmConcurrent lifts

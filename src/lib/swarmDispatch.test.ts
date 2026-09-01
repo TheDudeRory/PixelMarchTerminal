@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("./terminalPool", () => ({ lastOutputAt: () => 0, tailText: () => "" }));
 import { REWAKE_FAST_MS, REWAKE_MS, SETTLED_STATUSES, STALE_CLAIM_MS, WAKE_DELIVERY_MS, WAKE_MESSAGES, WAKE_MISS_MAX, byWakeAge, cancelledSwarms, consumedScouts, idleBus, inFlightTasks, isInjectable, isSettled, migratePaneRoles, missionDone, paneRole, planGate, reviewedSha, sameCommit, staleChanges, staleClaims, unexpectedHeadMove, wakeDue, wakeKey, wakeMirror, type WakeState } from "./swarm";
 import { newGroup, newPane, type LayoutNode, type Pane } from "./layout-tree";
-import { approvalText, assignReviews, chatWakeRows, coldStartPane, coordinatorQuiesceDue, stuckReviews, swarmCwd, type CoordQuiesce } from "./swarmDispatch";
+import { approvalText, assignReviews, chatWakeRows, coldStartPane, coordinatorQuiesceDue, onCompletionCommands, stuckReviews, swarmCwd, type CoordQuiesce } from "./swarmDispatch";
 
 const SIG = "task-1:open";
 const state = (over: Partial<WakeState> = {}): WakeState => ({ sig: SIG, at: 0, misses: 0, ...over });
@@ -98,6 +98,36 @@ describe("mission completion gate", () => {
     for (const status of ["claimed", "changes", "done", "approved"]) {
       expect(missionDone("shipped", [t("merged"), t(status)])).toBe(false);
     }
+  });
+});
+
+describe("on-mission-complete commands", () => {
+  const NOTE = "echo mission done\nnotify-send 'swarm finished'";
+
+  it("hands back the note's body on the mission's first done tick", () => {
+    expect(onCompletionCommands(new Set(), "swarm-a", NOTE)).toBe(NOTE);
+  });
+
+  it("fires exactly once per swarm — the completed set is the gate", () => {
+    const completed = new Set<string>();
+    // Tick 1: the branch is entered (swarm not yet completed) and answers the hook.
+    expect(onCompletionCommands(completed, "swarm-a", NOTE)).toBe(NOTE);
+    // The branch adds the swarm to `completed` the moment it runs…
+    completed.add("swarm-a");
+    // …so every later tick of the same loop answers nothing, forever.
+    expect(onCompletionCommands(completed, "swarm-a", NOTE)).toBeUndefined();
+    expect(onCompletionCommands(completed, "swarm-a", NOTE)).toBeUndefined();
+  });
+
+  it("never fires for a swarm with no hook — a blank or missing note is not an empty run", () => {
+    expect(onCompletionCommands(new Set(), "swarm-a", undefined)).toBeUndefined();
+    expect(onCompletionCommands(new Set(), "swarm-a", "  \n\t ")).toBeUndefined();
+  });
+
+  it("gates per project — one swarm's completion never eats another's hook", () => {
+    const completed = new Set<string>(["swarm-a"]);
+    expect(onCompletionCommands(completed, "swarm-a", NOTE)).toBeUndefined();
+    expect(onCompletionCommands(completed, "swarm-b", NOTE)).toBe(NOTE);
   });
 });
 
