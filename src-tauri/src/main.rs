@@ -44,6 +44,18 @@ fn main() {
         pixelmarch_lib::run_host();
         return;
     }
+    // `--swarm <profile> <prompt>`: headless self-run — one swarm in a hidden
+    // window, exit when the mission completes (lib::run_swarm_headless, which
+    // resolves the profile here, so a bad profile fails on this terminal
+    // before any window exists). Never returns.
+    match pixelmarch_lib::parse_swarm_args(&args) {
+        Ok(Some((profile, prompt))) => pixelmarch_lib::run_swarm_headless(&profile, &prompt),
+        Ok(None) => {}
+        Err(e) => {
+            eprintln!("pixelmarch: {e}");
+            std::process::exit(2);
+        }
+    }
     // `--await-exit <pid>`: this launch is a self-update relaunch — wait for the
     // previous GUI to fully exit before starting, so we don't race its
     // single-instance lock / host handoff (that left reattached terminals blank).
