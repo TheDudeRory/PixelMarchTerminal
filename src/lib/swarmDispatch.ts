@@ -42,7 +42,7 @@
 // (byWakeAge), because handing slots out in a fixed order let a coordinator
 // that comes due every heartbeat starve the builder wakes behind it at cap=1.
 import { useEffect } from "react";
-import { brainChat, brainChatSend, brainDelete, brainFeedNow, brainNote, brainReclaims, brainTaskStatus, brainTasks, brainUrl, subscribeBrainFeed, swarmBranchTip, swarmGuardRemove, swarmMergeTask, swarmParkStrays, swarmRepoDirty, swarmRepoHead, swarmUnregisterAgents, swarmWorktreeAdd, swarmWorktreeOwner, type ChatRow, type SwarmTask } from "./ipc";
+import { brainChat, brainChatSend, brainDelete, brainFeedNow, brainNote, brainReclaims, brainTaskStatus, brainTasks, brainUrl, ptyOpen, subscribeBrainFeed, swarmBranchTip, swarmGuardRemove, swarmMergeTask, swarmParkStrays, swarmRepoDirty, swarmRepoHead, swarmUnregisterAgents, swarmWorktreeAdd, swarmWorktreeOwner, type ChatRow, type SwarmTask } from "./ipc";
 import { collectPanes, isTerminal, type Pane } from "./layout-tree";
 import { lastOutputAt } from "./terminalPool";
 import { compacting, lastPromptAcceptedAt, subscribeAgentEvents, turnActive } from "./agentEvents";
@@ -364,6 +364,44 @@ export function stuckReviews<T extends { key: string; updated: number }>(
  *  happen for a swarm, but the git actions all no-op safely on ""). */
 export function swarmCwd(panes: Pane[]): string {
   return panes.map((p) => p.cwd).find((c): c is string => !!c) ?? "";
+}
+
+/** The on-mission-complete commands to fire right now, or undefined. The gate
+ *  is the caller's `completed` set: the missionDone branch is entered only for
+ *  a swarm NOT yet in it (the tick's first gate), and the branch adds the swarm
+ *  the moment it runs — so this answers a body at most once per swarm, and the
+ *  hook fires exactly once. A blank or missing note is "no hook", never an
+ *  empty run. Pure so the once-semantics are testable without a repo. */
+export function onCompletionCommands(
+  completed: Set<string>,
+  project: string,
+  note: string | undefined,
+): string | undefined {
+  if (completed.has(project)) return undefined;
+  const body = (note ?? "").trim();
+  return body || undefined;
+}
+
+/** Fire a swarm's on-mission-complete commands in its repo, fire-and-forget,
+ *  over the same host session path every pane uses — but in "piped" mode, whose
+ *  shell runs the startup command and then EXITS: the host reaps the session on
+ *  exit, so a one-shot hook leaves nothing behind. A pty-mode shell would drop
+ *  to an interactive prompt afterwards and hold the session open forever. The
+ *  data/exit frames carry a non-pane id the terminal pool does not know and
+ *  ignores, and the id is stable per project on purpose: pty_open re-ATTACHES
+ *  to a live session with the same id instead of re-spawning, so a stray second
+ *  fire can at worst re-read the first run's output, never run the hook twice.
+ *  The env carries the project (and the brain address the host adds to every
+ *  session), so a hook that wants the bus can reach it. */
+async function runOnCompletion(project: string, repo: string, commands: string): Promise<void> {
+  await ptyOpen(`swarm-oncomplete-${project}`, {
+    rows: 24,
+    cols: 120,
+    cwd: repo,
+    startupCommand: commands,
+    env: { PIXELMARCH_PROJECT: project },
+    mode: "piped",
+  });
 }
 
 /** A SHA-shaped token, the shape `resolve_approved` (swarm.rs) will try against
@@ -777,8 +815,8 @@ export function useSwarmDispatch() {
     const scoutRetired = new Set<string>(); // "<swarm>/<task>" scout task already settled after its report was delivered
     let round = 0; // rotates which swarm is served first — see below
     // Brain state comes off the shared feed (lib/ipc) rather than four reads of
-    // this loop's own per swarm per tick (result, tasks, plan and a full-store
-    // chat search). A subscription is what makes the feed poll at all, so a swarm
+    // this loop's own per swarm per tick (result, tasks, plan, on-complete and
+    // a full-store chat search). A subscription is what makes the feed poll at all, so a swarm
     // this watcher has stopped serving — dispatch off, or mission complete — is
     // dropped and stops costing anything. hiddenMs === intervalMs on purpose:
     // this is a watcher, and a swarm must keep being dispatched while the window
@@ -791,7 +829,7 @@ export function useSwarmDispatch() {
         project,
         // No "chat-" prefix any more: chat is read through brain_chat (which routes
         // and parses it), so the feed carries only what this loop still reads itself.
-        { intervalMs: POLL_MS, hiddenMs: POLL_MS, watch: ["plan", "result"] },
+        { intervalMs: POLL_MS, hiddenMs: POLL_MS, watch: ["plan", "result", "on-complete"] },
         () => { /* read imperatively in tick() — this loop paces itself */ },
       ));
       // Lifecycle hooks (Phase A): the swarm's hook-capable panes report their own
@@ -899,19 +937,27 @@ export function useSwarmDispatch() {
         // the ordinary review/merge wakes drain the leftovers; the same note then
         // completes the mission on the first tick the bus is clear.
         if (missionDone(result, tasks)) {
+          const repo = swarmCwd(agentPanes);
+          // The on-mission-complete hook, fired BEFORE the teardown below: its
+          // commands may assume the swarm's scaffolding is still up, and it is
+          // the last thing that runs while the swarm is still live. `completed`
+          // is the once-gate — the tick's first gate skips swarms already in it,
+          // and the add below puts this swarm in — so this branch is entered at
+          // most once per swarm and the hook fires exactly once. A failed spawn
+          // is a dropped hook, never a blocked teardown: the mission is over.
+          const onDone = onCompletionCommands(completed, ws.swarm!, feed.notes["on-complete"]?.value);
           completed.add(ws.swarm!);
+          if (onDone && repo) runOnCompletion(ws.swarm!, repo, onDone).catch(() => {});
           // Tear the enforcement scaffolding down: revoke the swarm's agent
           // tokens + per-role MCP configs, and remove the pre-commit guard from
           // the repo so ordinary commits work again. Once per swarm.
           if (!cleaned.has(ws.swarm!)) {
             cleaned.add(ws.swarm!);
-            const repo = swarmCwd(agentPanes);
             swarmUnregisterAgents(ws.swarm!).catch(() => {});
             // Only the last swarm out of a repo disarms it — a sibling still
             // running there keeps its seatbelt. Same rule as the cancel teardown.
             const shared = all.some((w) => w.swarm !== ws.swarm && repoOf.get(w.swarm!) === repo);
             if (repo && !shared) swarmGuardRemove(repo).catch(() => {});
-
           }
           unwatchFeed(ws.swarm!); noWakes(); continue;
         }
