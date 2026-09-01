@@ -5,7 +5,6 @@
 #   bash scripts/package-linux.sh                 # build, then package
 #   bash scripts/package-linux.sh --no-build      # package the binary already built
 #   bash scripts/package-linux.sh --no-deps       # build without touching system packages
-#   bash scripts/package-linux.sh --no-voice      # pass through to linux-build.sh
 #   bash scripts/package-linux.sh --clean         # wipe the staging dir first
 #   bash scripts/package-linux.sh --out DIR       # write the zip to DIR instead of dist-zip/
 #   bash scripts/package-linux.sh --scratch-dir DIR  # scratch root (default $TMPDIR)
@@ -15,9 +14,9 @@
 #
 # WHY THIS SCRIPT EXISTS — READ BEFORE EDITING
 #   The developer's live runtime profile (the folder the app runs from) holds
-#   settings with absolute host paths, brain/ notes, personal screenshots and
-#   300 MB of ggml-*.bin models. Copying that folder into the zip ships all of
-#   that. So this script NEVER copies a directory wholesale. It stages an
+#   settings with absolute host paths, brain/ notes and personal screenshots.
+#   Copying that folder into the zip ships all of that. So this script NEVER
+#   copies a directory wholesale. It stages an
 #   explicit ALLOW-LIST of files, one cp per line. If
 #   you need something else in the zip, add it to stage() by name — never widen
 #   this into an exclude-list, and never `cp -r` a directory that the running
@@ -46,7 +45,7 @@ while [ $# -gt 0 ]; do
     --scratch-dir)   scratch_set "${2:-}" || exit 2; BUILD_ARGS+=(--scratch-dir "$2"); shift ;;
     --scratch-dir=*) scratch_parse_arg "$1"; BUILD_ARGS+=("$1") ;;
     # everything linux-build.sh understands, passed straight through
-    --no-deps|--no-voice|--deps-only|--bundle) BUILD_ARGS+=("$1") ;;
+    --no-deps|--deps-only|--bundle) BUILD_ARGS+=("$1") ;;
     -h|--help)   grep '^#' "$0" | sed 's/^# \?//'; exit 0 ;;
     *) echo "unknown arg: $1" >&2; exit 2 ;;
   esac
@@ -131,7 +130,7 @@ echo "==> Staging $STAGE"
 # the running app writes lives there: webview/{data,cache} (WebKitGTK cookies,
 # localStorage, hsts-storage.sqlite — see src-tauri/src/main.rs, which points
 # XDG_DATA_HOME/XDG_CACHE_HOME at it) plus the state_dir() children
-# (brain/, logs/, macros/, hotkeys/, screenshots/, *.json, .port/.pid/.token).
+# (brain/, logs/, screenshots/, *.json, .port/.pid/.token).
 # A dev run before packaging fills those; shipping them is a data leak, not
 # bloat. They are excluded BY CONSTRUCTION here — do not add a directory copy.
 # ./pixelmarch is the launcher script; the real binary ships beside it as
@@ -157,8 +156,7 @@ echo "    + INSTALL.txt"
 # staging step grew a directory copy — fix that, do not relax this check.
 BAD="$(find "$STAGE" \( -name '*.json' -o -name '*.bin' -o -name '*.exe' \
   -o -name '*.port' -o -name '*.url' -o -name '*.log' \
-  -o -name 'brain' -o -name 'screenshots' -o -name 'logs' -o -name 'macros' \
-  -o -name 'hotkeys' -o -name 'webview' \) -print)"
+  -o -name 'brain' -o -name 'screenshots' -o -name 'logs' -o -name 'webview' \) -print)"
 if [ -n "$BAD" ]; then
   echo "CONTAMINATED STAGING DIR — refusing to zip:" >&2
   echo "$BAD" >&2

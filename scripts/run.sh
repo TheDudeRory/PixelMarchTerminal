@@ -164,8 +164,8 @@ if [ "$WANT_BUILD" -eq 1 ]; then
   fi
 
   # Cargo decides for itself what needs recompiling, so this is a no-op when
-  # nothing changed. First build on a cold target dir is minutes (whisper-rs and
-  # webkit2gtk); say so rather than let it look hung.
+  # nothing changed. First build on a cold target dir is minutes (webkit2gtk is
+  # a long compile); say so rather than let it look hung.
   # `--features custom-protocol` is NOT optional, and its absence is silent: the
   # tauri crate's build script sets cfg(dev) to !custom-protocol, so a plain
   # `cargo build --release` produces a binary that ignores the dist/ we just built

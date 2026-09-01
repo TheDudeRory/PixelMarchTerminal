@@ -96,7 +96,6 @@ export function HelpOverlay() {
             ))}
             {globals && <ShortcutRow k={globals.summon} d="Show / hide window (global)" />}
             {globals && <ShortcutRow k={globals.screenshot} d="Screenshot every monitor (global)" />}
-            <ShortcutRow k="Ctrl+Alt+H" d="Global Hotkeys manager" />
             <ShortcutRow k="Ctrl+wheel" d="Interface zoom" />
           </tbody>
         </table>

@@ -7,9 +7,7 @@
 #
 # Usage:
 #   ./scripts/linux-setup.sh            # install all system deps (+ rust/node if missing)
-#   ./scripts/linux-setup.sh --voice    # also install whisper-rs build deps (clang/cmake)
 #   ./scripts/linux-setup.sh --build     # after deps, run a portable build to verify
-#   ./scripts/linux-setup.sh --voice --build
 #   ./scripts/linux-setup.sh --build --scratch-dir DIR   # scratch root (default $TMPDIR)
 #
 # Targets: Ubuntu 24.04+ / Debian 13+ / Fedora 39+ (all ship webkit2gtk-4.1, which
@@ -17,13 +15,11 @@
 
 set -euo pipefail
 
-WANT_VOICE=0
 WANT_BUILD=0
 # shellcheck disable=SC1091
 . "$(cd "$(dirname "$0")" && pwd)/lib/scratch.sh"
 while [ $# -gt 0 ]; do
   case "$1" in
-    --voice) WANT_VOICE=1 ;;
     --build) WANT_BUILD=1 ;;
     --scratch-dir)   scratch_set "${2:-}" || exit 2; shift ;;
     --scratch-dir=*) scratch_parse_arg "$1" ;;
@@ -52,23 +48,21 @@ if [ "$PM" = "apt" ]; then
   BASE="build-essential curl wget file pkg-config ca-certificates git"
   # Tauri 2 core (WebKitGTK + GTK + tray + svg)
   TAURI="libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev patchelf"
-  # X11/XCB/Wayland — enigo (libxdo), arboard + xcap (xcb / PipeWire portal)
-  GUI="libxdo-dev libx11-dev libxrandr-dev libxi-dev libxtst-dev libxfixes-dev \
+  # X11/XCB/Wayland — screenshot capture (xcap: xcb / PipeWire portal)
+  GUI="libx11-dev libxrandr-dev libxi-dev libxtst-dev libxfixes-dev \
        libxcb1-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev \
        libwayland-dev libpipewire-0.3-dev"
-  # D-Bus (notify-rust, zbus) + ALSA (cpal)
-  SVC="libdbus-1-dev libasound2-dev"
-  # Runtime helpers for testing macros on a desktop VM (xdg-open, pactl)
-  RUNTIME="xdg-utils pulseaudio-utils"
-  VOICE="clang libclang-dev cmake"
+  # D-Bus (notify-rust, wayland screenshot capture)
+  SVC="libdbus-1-dev"
+  # Runtime helper: xdg-open (the opener plugin shells out to it)
+  RUNTIME="xdg-utils"
 else # dnf / Fedora
   BASE="gcc gcc-c++ make curl wget file pkgconf-pkg-config ca-certificates git"
   TAURI="webkit2gtk4.1-devel gtk3-devel libayatana-appindicator-gtk3-devel librsvg2-devel patchelf"
-  GUI="libxdo-devel libX11-devel libXrandr-devel libXi-devel libXtst-devel libXfixes-devel \
+  GUI="libX11-devel libXrandr-devel libXi-devel libXtst-devel libXfixes-devel \
        libxcb-devel wayland-devel pipewire-devel"
-  SVC="dbus-devel alsa-lib-devel"
-  RUNTIME="xdg-utils pulseaudio-utils"
-  VOICE="clang clang-devel cmake"
+  SVC="dbus-devel"
+  RUNTIME="xdg-utils"
 fi
 
 pm_install() {
@@ -91,16 +85,11 @@ pm_install "$TAURI"
 echo "==> Installing X11 / XCB / Wayland stack"
 pm_install "$GUI"
 
-echo "==> Installing D-Bus + ALSA"
+echo "==> Installing D-Bus"
 pm_install "$SVC"
 
-echo "==> Installing runtime test helpers (best-effort)"
+echo "==> Installing runtime helpers (best-effort)"
 pm_install "$RUNTIME" || echo "   (runtime helpers optional — continuing)"
-
-if [ "$WANT_VOICE" -eq 1 ]; then
-  echo "==> Installing --features voice build deps (clang/cmake)"
-  pm_install "$VOICE"
-fi
 
 # --- Rust toolchain ----------------------------------------------------------
 if ! command -v cargo >/dev/null 2>&1; then
@@ -128,7 +117,7 @@ fi
 
 echo
 echo "==> System deps installed."
-echo "    Display server note: enigo/arboard/xcap/notify-rust need a running"
+echo "    Display server note: xcap/notify-rust need a running"
 echo "    desktop session (X11 or Wayland). Headless VMs will error at runtime."
 echo "    Test BOTH sessions — log into an Xorg session to exercise the X11 paths."
 

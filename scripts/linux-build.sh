@@ -6,7 +6,6 @@
 #   bash scripts/linux-build.sh              # build (installs missing deps)
 #   bash scripts/linux-build.sh --no-deps    # skip dep install, just build
 #   bash scripts/linux-build.sh --deps-only  # install deps and stop
-#   bash scripts/linux-build.sh --no-voice   # build --no-default-features (skip whisper/cpal)
 #   bash scripts/linux-build.sh --bundle     # also produce deb/rpm/AppImage
 #   bash scripts/linux-build.sh --clean      # wipe the mirror before building
 #   bash scripts/linux-build.sh --scratch-dir DIR   # scratch root (default $TMPDIR)
@@ -20,15 +19,12 @@
 #
 # .git comes along to the mirror too — src-tauri/build.rs shells out to git to
 # stamp the binary with the commit sha, and without it every build says "unknown".
-#
-# The `voice` feature is ON by default (whisper-rs + cpal), so libclang and CMake
-# are hard build deps unless you pass --no-voice.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 . scripts/lib/scratch.sh
 
 # The mirror is a full copy of the checkout plus node_modules plus a cargo target
-# built with whisper/tauri. Measured at 12 GiB on this box with room to grow, so
+# built with tauri. Measured at 12 GiB on this box with room to grow, so
 # the check asks for 15 GiB before it will start. Note tmpfs is RAM-backed and a
 # default /tmp is usually a fraction of RAM, so it will often NOT fit this — that
 # is exactly the case scratch_ensure stops on instead of picking somewhere else.
@@ -37,14 +33,12 @@ SCRATCH_MB=15360
 WANT_DEPS=1
 DEPS_ONLY=0
 WANT_BUNDLE=0
-WANT_VOICE=1
 WANT_CLEAN=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --no-deps)   WANT_DEPS=0 ;;
     --deps-only) DEPS_ONLY=1 ;;
     --bundle)    WANT_BUNDLE=1 ;;
-    --no-voice)  WANT_VOICE=0 ;;
     --clean)     WANT_CLEAN=1 ;;
     --scratch-dir)   scratch_set "${2:-}" || exit 2; shift ;;
     --scratch-dir=*) scratch_parse_arg "$1" ;;
@@ -69,23 +63,20 @@ fi
 install_deps() {
   case "$PM" in
     pacman)
-      # Arch splits little: base-devel covers gcc/make/pkgconf. xdotool ships
-      # libxdo (enigo); webkit2gtk-4.1 is the Tauri 2 requirement (NOT the
-      # legacy webkit2gtk 4.0 package).
+      # Arch splits little: base-devel covers gcc/make/pkgconf; webkit2gtk-4.1
+      # is the Tauri 2 requirement (NOT the legacy webkit2gtk 4.0 package).
       local pkgs="base-devel git curl wget file
         webkit2gtk-4.1 gtk3 libayatana-appindicator librsvg patchelf
-        xdotool libx11 libxrandr libxi libxtst libxfixes libxcb wayland pipewire
-        dbus alsa-lib xdg-utils libpulse
+        libx11 libxrandr libxi libxtst libxfixes libxcb wayland pipewire
+        dbus xdg-utils
         nodejs npm rustup"
-      if [ "$WANT_VOICE" -eq 1 ]; then pkgs="$pkgs clang cmake"; fi
       echo "==> pacman: installing build deps"
       # shellcheck disable=SC2086
       $SUDO pacman -S --needed --noconfirm $pkgs
       ;;
     apt|dnf)
       echo "==> Delegating to scripts/linux-setup.sh ($PM)"
-      if [ "$WANT_VOICE" -eq 1 ]; then bash scripts/linux-setup.sh --voice
-      else bash scripts/linux-setup.sh; fi
+      bash scripts/linux-setup.sh
       ;;
     *)
       echo "No pacman/apt/dnf found — install deps by hand, then re-run with --no-deps." >&2
@@ -116,10 +107,6 @@ done
 pkg-config --exists webkit2gtk-4.1 2>/dev/null || {
   echo "missing: webkit2gtk-4.1 dev files — install them (Arch: pacman -S webkit2gtk-4.1)" >&2
   exit 1; }
-if [ "$WANT_VOICE" -eq 1 ] && ! command -v cmake >/dev/null 2>&1; then
-  echo "missing: cmake — needed by whisper-rs. Install it, or build with --no-voice." >&2
-  exit 1
-fi
 
 # --- Build off the volume when it cannot host node_modules/target -------------
 SRC="$PWD"
@@ -153,9 +140,8 @@ if [ -f package-lock.json ]; then npm ci; else npm install; fi
 
 ARGS=()
 if [ "$WANT_BUNDLE" -eq 0 ]; then ARGS+=(--no-bundle); fi
-if [ "$WANT_VOICE" -eq 0 ]; then ARGS+=(--no-default-features); fi
 
-echo "==> Building (voice=$WANT_VOICE bundle=$WANT_BUNDLE)"
+echo "==> Building (bundle=$WANT_BUNDLE)"
 npm run tauri -- build "${ARGS[@]}"
 
 # Where cargo actually put the binary. Not necessarily src-tauri/target: a

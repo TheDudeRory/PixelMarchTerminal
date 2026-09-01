@@ -5,7 +5,7 @@
 //! PixelMarch runs FROM SOURCE (see `update.rs`: updating is `git pull` +
 //! rebuild, not an exe swap), so the install *is* the repo. `repo_root()` is
 //! the single place that decides where that repo is, and every other path in
-//! the app — config, license, screenshots, logs, hotkeys, macros, brain,
+//! the app — config, license, screenshots, logs, brain,
 //! host tokens, the webview cache — hangs off
 //! `state_dir()` below it.
 //!
