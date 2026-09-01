@@ -757,9 +757,9 @@ fn stop_host(client: &HostClient) -> Result<(), String> {
 /// that string through verbatim, so a naive `rename(cur, ...)` targets a path that
 /// can never exist and fails with os error 2 (ENOENT). Strip the marker so we
 /// target the real install location; a path without it is returned unchanged.
-/// Shared with `hostclient::spawn_host` and `voice::set_start_on_login`, which
-/// hand the same `current_exe()` string to `Command::new` / an autostart entry
-/// and would otherwise spawn (or persist) a path that can never resolve.
+/// Shared with `hostclient::spawn_host`, which hands the same `current_exe()`
+/// string to `Command::new` and would otherwise spawn a path that can never
+/// resolve.
 pub(crate) fn intended_install_path(cur: &std::path::Path) -> std::path::PathBuf {
     const DELETED: &str = " (deleted)";
     if let Some(stripped) = cur.to_str().and_then(|s| s.strip_suffix(DELETED)) {

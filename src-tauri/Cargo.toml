@@ -15,14 +15,7 @@ name = "pixelmarch_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [features]
-# Voice-To-Text is ON by default (mission: it must actually work out of the box).
-# The build host here has libclang + CMake + AVX2, so whisper-rs/cpal compile
-# fine. If you build on a box without them, disable it: `--no-default-features`.
-default = ["voice"]
-# Real dictation (mic capture + Whisper STT). Requires libclang + CMake to build.
-# regex is now an unconditional dep (the macro engine needs it), so it is no
-# longer gated behind `voice`.
-voice = ["dep:cpal", "dep:whisper-rs"]
+default = []
 
 # Tauri decides dev-vs-production at COMPILE time, from this feature: `tauri`'s
 # build script sets `cfg(dev)` to `!custom-protocol`. The tauri CLI passes it on
@@ -40,7 +33,7 @@ devtools = ["tauri/devtools"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = ["protocol-asset", "tray-icon"] }
+tauri = { version = "2", features = ["protocol-asset"] }
 tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
@@ -62,11 +55,10 @@ chrono = "0.4"
 # BigBrain: tiny embedded HTTP memory service.
 tiny_http = "0.12"
 
-# HTTP client + hash. Both used to belong to the self-updater; that is gone (the
-# app updates with `git pull` + a rebuild, see src/update.rs), and these now serve
-# the licensing client (src/license.rs, which POSTs and parses JSON — hence the
-# `json` feature) and the Whisper model installer (src/voice/models.rs, which
-# downloads a model and checks its published sha256 before using it).
+# HTTP client + hash. The licensing client (src/license.rs) POSTs and parses
+# JSON (hence the `json` feature); both crates used to belong to the
+# self-updater, which is gone (the app updates with `git pull` + a rebuild,
+# see src/update.rs).
 ureq = { version = "2", features = ["json"] }
 sha2 = "0.10"
 
@@ -81,14 +73,8 @@ ed25519-dalek = "2"
 sysinfo = "0.33"
 nvml-wrapper = "0.10"
 
-# Voice-To-Text (VoiceMarch fold-in). Gated behind the `voice` feature, which is
-# ON by default (see [features] above): whisper-rs needs libclang + CMake at build
-# time, so a box without them must build with `--no-default-features`.
-cpal = { version = "0.15", optional = true }
-whisper-rs = { version = "0.16", optional = true }
-
-# Used by both the Voice fold-in and the KeyForge macro engine (window-title /
-# clipboard regex conditions), so it is unconditional now.
+# Used by the KeyForge macro engine (window-title / clipboard regex
+# conditions), so it is unconditional.
 regex = "1"
 
 # KeyForge macro engine (src/macros/**): scripted-expression eval (rhai),

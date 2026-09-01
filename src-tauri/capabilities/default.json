@@ -1,8 +1,8 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Capability for the main window and the voice window",
-  "windows": ["main", "voice", "snip-*"],
+  "description": "Capability for the main window and the snip overlays",
+  "windows": ["main", "snip-*"],
   "permissions": [
     "core:default",
     "core:webview:allow-set-webview-zoom",

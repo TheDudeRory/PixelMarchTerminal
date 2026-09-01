@@ -6,7 +6,7 @@
 //! rebuild, not an exe swap), so the install *is* the repo. `repo_root()` is
 //! the single place that decides where that repo is, and every other path in
 //! the app — config, license, screenshots, logs, hotkeys, macros, brain,
-//! host tokens, voice settings, whisper models, the webview cache — hangs off
+//! host tokens, the webview cache — hangs off
 //! `state_dir()` below it.
 //!
 //! Nothing here reads the runtime environment: the fallback is
@@ -150,8 +150,8 @@ pub fn read_text(path: String) -> Result<String, String> {
 }
 
 /// Native picker for a Markdown file (a user-written swarm role brief).
-/// Returns the picked path, or None if the user cancelled. Modelled on
-/// `voice::models::voice_model_import` — rfd is the app's only file dialog.
+/// Returns the picked path, or None if the user cancelled. rfd is the app's
+/// only file dialog.
 #[tauri::command]
 pub async fn pick_markdown_file(title: Option<String>) -> Result<Option<String>, String> {
     let picked = rfd::AsyncFileDialog::new()

@@ -189,11 +189,9 @@ interface LayoutState {
   // settings window / quit / toasts (M7)
   settingsOpen: boolean;
   // Category the Settings modal should open on (null = keep whatever it showed
-  // last). Lets another surface deep-link into a category — e.g. the first-run
-  // overlay sending the user straight to Voice-To-Text.
+  // last). Lets another surface deep-link into a category.
   settingsCategory: string | null;
   hotkeysOpen: boolean; // Global Hotkeys menu (task-4)
-  voiceOpen: boolean; // Voice-To-Text window flag (task-5)
   bigBrainOpen: boolean;
   galleryOpen: boolean; // screenshot gallery overlay
   swarmOpen: boolean;
@@ -212,7 +210,6 @@ interface LayoutState {
   toasts: Toast[];
   openSettings(open: boolean, category?: string): void;
   openHotkeys(open: boolean): void;
-  openVoice(open: boolean): void;
   openBigBrain(open: boolean): void;
   openGallery(open: boolean): void;
   openSwarm(open: boolean): void;
@@ -349,7 +346,6 @@ export const useLayout = create<LayoutState>()(subscribeWithSelector((set, get) 
   settingsOpen: false,
   settingsCategory: null,
   hotkeysOpen: false,
-  voiceOpen: false,
   bigBrainOpen: false,
   galleryOpen: false,
   swarmOpen: false,
@@ -365,7 +361,6 @@ export const useLayout = create<LayoutState>()(subscribeWithSelector((set, get) 
 
   openSettings: (open, category) => set({ settingsOpen: open, settingsCategory: open ? category ?? null : null }),
   openHotkeys: (open) => set({ hotkeysOpen: open }),
-  openVoice: (open) => set({ voiceOpen: open }),
   setKeybind: (action, combo) => set((s) => ({ keymap: { ...s.keymap, [action]: combo } })),
   resetKeymap: () => set({ keymap: DEFAULT_KEYMAP }),
   openBigBrain: (open) => set({ bigBrainOpen: open }),

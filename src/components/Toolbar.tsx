@@ -1,7 +1,6 @@
-import { useEffect, useState, type CSSProperties } from "react";
+import { useState, type CSSProperties } from "react";
 import { useLayout } from "../stores/layout";
 import { PRESETS, type PresetId } from "../lib/layout-tree";
-import { voiceShowWindow, voiceHideWindow, voiceStatus, onVoiceEnabled } from "../lib/ipc";
 
 const cell: CSSProperties = { background: "#4c8bf5", borderRadius: 1 };
 const gap = { gap: 2, display: "flex" } as const;
@@ -36,24 +35,7 @@ export default function Toolbar() {
   const bigBrainOpen = useLayout((s) => s.bigBrainOpen);
   const openGallery = useLayout((s) => s.openGallery);
   const galleryOpen = useLayout((s) => s.galleryOpen);
-  const voiceOpen = useLayout((s) => s.voiceOpen);
-  const openVoice = useLayout((s) => s.openVoice);
   const [open, setOpen] = useState(false);
-  // Voice-To-Text master switch. Assume ON until the backend answers, so the
-  // button doesn't flicker in on every launch; the live event keeps it honest
-  // when the switch is flipped from the settings panel (a different webview).
-  const [voiceEnabled, setVoiceEnabled] = useState(true);
-
-  useEffect(() => {
-    voiceStatus().then((st) => setVoiceEnabled(st.enabled)).catch(() => {});
-    const un = onVoiceEnabled((on) => {
-      setVoiceEnabled(on);
-      // The backend hid the pill; drop the store flag too or the button comes
-      // back mid-toggle claiming the window is still open.
-      if (!on) openVoice(false);
-    });
-    return () => { un.then((f) => f()).catch(() => {}); };
-  }, [openVoice]);
 
   const pick = (id: PresetId) => { applyPreset(id); setOpen(false); };
 
@@ -91,15 +73,6 @@ export default function Toolbar() {
         style={{ fontSize: 12, background: "transparent", color: "var(--muted)", border: "1px solid var(--border)", borderRadius: 5, padding: "3px 9px", cursor: "pointer" }}>Profiles</button>
       <button onClick={() => openHotkeys(true)} title="Global Hotkeys"
         style={{ fontSize: 12, background: "transparent", color: "var(--muted)", border: "1px solid var(--border)", borderRadius: 5, padding: "3px 9px", cursor: "pointer" }}>Hotkeys</button>
-      {voiceEnabled && (
-        <button
-          onClick={() => {
-            if (voiceOpen) { voiceHideWindow().catch(() => {}); openVoice(false); }
-            else { voiceShowWindow().catch(() => {}); openVoice(true); }
-          }}
-          title={voiceOpen ? "Hide Voice-To-Text window" : "Show Voice-To-Text dictation window"}
-          style={{ fontSize: 12, background: voiceOpen ? "transparent" : "var(--accent)", color: voiceOpen ? "var(--muted)" : "#fff", border: "1px solid var(--border)", borderRadius: 5, padding: "3px 9px", cursor: "pointer" }}>🎙 Voice</button>
-      )}
       <button onClick={() => openGallery(!galleryOpen)} title="Screenshot gallery"
         style={{ fontSize: 14, lineHeight: 1, background: galleryOpen ? "var(--accent)" : "transparent", color: galleryOpen ? "#fff" : "var(--muted)", border: "1px solid var(--border)", borderRadius: 5, padding: "3px 8px", cursor: "pointer" }}>📷</button>
       <button onClick={() => openBigBrain(!bigBrainOpen)} title="BigBrain — local memory service (Ctrl+Shift+M)"

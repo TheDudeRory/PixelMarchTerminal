@@ -10,13 +10,12 @@ import { cliProfileCommand, type CliProfile } from "../lib/cliProfiles";
 import { KNOWN_AGENT_CMDS } from "../lib/swarm";
 import { useBackdropClose } from "../lib/useBackdropClose";
 import { ACCENT_SELECTED, field, label, overlay, row } from "../lib/uiStyles";
-import VoiceCategory from "./VoiceSettings";
 import KeybindsSettings from "./KeybindsSettings";
 import LicenseCategory from "./LicenseSettings";
 
 // ── Category registry ─────────────────────────────────────────────────────────
 // Extensible list of setting categories mirroring the ProfileManager left-list /
-// right-editor split. Downstream tasks (Keybinds, Voice-To-Text) add a category
+// right-editor split. Downstream tasks (Keybinds) add a category
 // with a single entry here + one component file — no other edits to this file.
 export interface SettingsCategory {
   id: string;
@@ -31,14 +30,13 @@ export const SETTINGS_CATEGORIES: SettingsCategory[] = [
   { id: "license", label: "License", Component: LicenseCategory },
   { id: "session", label: "Session", Component: SessionCategory },
   { id: "keybinds", label: "Keybinds", Component: KeybindsSettings },
-  { id: "voice", label: "Voice-To-Text", Component: VoiceCategory },
 ];
 
 export default function SettingsModal() {
   const open = useLayout((s) => s.settingsOpen);
   const close = useLayout((s) => s.openSettings);
-  // Set when something deep-links here (e.g. the first-run overlay pointing at
-  // Voice-To-Text); null just leaves the last category selected.
+  // Set when something deep-links here; null just leaves the last category
+  // selected.
   const wanted = useLayout((s) => s.settingsCategory);
   const [catId, setCatId] = useState<string>(SETTINGS_CATEGORIES[0].id);
   const backdrop = useBackdropClose(() => close(false));

@@ -12,7 +12,6 @@ mod state;
 mod swarm;
 mod sysmon;
 mod update;
-mod voice;
 // Wayland screen capture. Linux-only: it talks to KWin and xdg-desktop-portal.
 #[cfg(target_os = "linux")]
 mod wayland_shot;
@@ -326,11 +325,6 @@ fn run_app(headless: bool) {
                 .with_handler(|app, shortcut, event| {
                     let pressed =
                         event.state == tauri_plugin_global_shortcut::ShortcutState::Pressed;
-                    // Voice push-to-talk needs BOTH edges (down opens the mic, up
-                    // transcribes), so it's checked before the press-only branch.
-                    if voice::handle_ptt(app, shortcut, pressed) {
-                        return;
-                    }
                     if pressed {
                         // Emergency stop first (safety): if this combo (or one of
                         // its modifier supersets) is the estop, cancel all macros +
@@ -379,7 +373,7 @@ fn run_app(headless: bool) {
             // the window before `app.manage(client)` that the next comment guards.
             brain::start_index_watch();
             // Connect to (or launch) the detached PTY host and register managed
-            // state FIRST, before the slower inits below (hotkeys/voice/tray).
+            // state FIRST, before the slower inits below (hotkeys).
             // The webview can start loading and invoke pty_open the moment the
             // window appears; if manage() runs after those slow inits we race and
             // pty_open fails with "state not managed for field `client`".
@@ -413,13 +407,6 @@ fn run_app(headless: bool) {
                 // Register the user's Global Hotkeys (KeyForge fold-in) from the
                 // persisted hotkeys/default.json profile.
                 hotkeys::init(app.handle());
-                // Voice-To-Text (VoiceMarch fold-in): load settings and, when built
-                // with --features voice, spawn the capture thread + register PTT.
-                voice::init(app.handle());
-                // System tray (VoiceMarch fold-in): Show / Voice / Quit + tooltip.
-                if let Err(e) = voice::build_tray(app.handle()) {
-                    eprintln!("failed to build tray: {e}");
-                }
             }
             // asset: protocol scope. Config ships an EMPTY static scope (was
             // ["**"] — the webview could read ANY file on disk via asset://).
@@ -467,11 +454,6 @@ fn run_app(headless: bool) {
             hotkeys::devices_audio, hotkeys::devices_usb,
             hotkeys::devices_audio_sessions, hotkeys::set_app_volume,
             app_shortcuts_get, app_shortcuts_set,
-            voice::voice_get_settings, voice::voice_set_settings, voice::voice_list_mics,
-            voice::voice_show_window, voice::voice_hide_window, voice::voice_status,
-            voice::models::voice_models_status, voice::models::voice_model_download,
-            voice::models::voice_model_import,
-            voice::set_compact,
             shells::detect_shells,
             sysmon::sysinfo_snapshot,
             app_version,
@@ -498,11 +480,6 @@ fn run_app(headless: bool) {
             license::license_portal,
             swarm_headless_request, headless_fail
         ])
-        // Voice pill: hide-to-tray on close + persist its dragged position. Scoped
-        // to the "voice" label inside the handler; the main window is untouched.
-        .on_window_event(|window, event| {
-            voice::on_window_event(window, event);
-        })
         .run(context)
         .expect("error while running tauri application");
 }

@@ -16,25 +16,6 @@
         "width": 1200,
         "height": 800,
         "dragDropEnabled": false
-      },
-      {
-        "label": "voice",
-        "title": "Voice-To-Text",
-        "url": "index.html?voice=1",
-        "width": 152,
-        "height": 72,
-        "minWidth": 152,
-        "minHeight": 72,
-        "maxWidth": 320,
-        "maxHeight": 480,
-        "resizable": true,
-        "decorations": false,
-        "transparent": true,
-        "shadow": false,
-        "alwaysOnTop": true,
-        "skipTaskbar": true,
-        "visible": false,
-        "dragDropEnabled": false
       }
     ],
     "security": {
