@@ -56,12 +56,10 @@ fn main() {
     // and refuses such a build, which used to mean hand-touching update.rs to force a
     // recompile. Declaring it here makes cargo do that itself.
     // Every other option_env! bake needs the same treatment, and for these the stale
-    // value is a security problem rather than an inconvenience: PIXELMARCH_LICENSE_URL
-    // would silently keep pointing at the wrong licence server (nothing greps the exe
-    // for it), and the three PIXELMARCH_ALLOW_* flags would keep an escape hatch alive
-    // in a build whose operator has already unset it.
+    // value is a security problem rather than an inconvenience: the three
+    // PIXELMARCH_ALLOW_* flags would keep an escape hatch alive in a build whose
+    // operator has already unset it.
     println!("cargo:rerun-if-env-changed=PIXELMARCH_UPDATE_URL");
-    println!("cargo:rerun-if-env-changed=PIXELMARCH_LICENSE_URL");
     println!("cargo:rerun-if-env-changed=PIXELMARCH_ALLOW_HTTP_UPDATE");
     println!("cargo:rerun-if-env-changed=PIXELMARCH_ALLOW_INSECURE_UPDATE");
     println!("cargo:rerun-if-env-changed=PIXELMARCH_ALLOW_UNVERIFIED_UPDATE");
