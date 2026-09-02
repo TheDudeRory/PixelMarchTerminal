@@ -222,37 +222,6 @@ export const brainSetInfo = (value: string): Promise<void> => invoke("brain_set_
 // it did ("git init + initial empty commit"), "" if the repo was already fine.
 export const ensureGitRepo = (cwd: string): Promise<string> => invoke("ensure_git_repo", { cwd });
 
-// Licensing (src-tauri/src/license.rs). Ed25519 entitlement tokens are verified
-// offline against a baked-in public key; the cache lives in the app's data/ folder.
-// `licensed` is the ONLY field that may gate a paid feature — `state` is for
-// telling the user what is going on, and must never be rendered raw.
-export interface LicenseStatus {
-  licensed: boolean;
-  /** unlicensed | active | trialing | past_due | canceled | expired | invalid */
-  state: string;
-  /** Raw subscription status from the token; for diagnostics, not for the UI. */
-  status: string | null;
-  plan: string | null;
-  /** Unix seconds — when access lapses unless renewed. */
-  expires_at: number | null;
-  license_key: string | null;
-  last_check: number | null;
-  /** The last refresh attempt did not complete. Access is unaffected. */
-  offline: boolean;
-  device_id: string | null;
-}
-// Reads the cache, and refreshes only when the token is near expiry (at most
-// hourly) — so this can block on the network for a few seconds.
-export const licenseStatus = (): Promise<LicenseStatus> => invoke("license_status");
-export const licenseActivate = (key: string): Promise<LicenseStatus> => invoke("license_activate", { key });
-export const licenseRefresh = (): Promise<LicenseStatus> => invoke("license_refresh");
-export const licenseDeactivate = (): Promise<LicenseStatus> => invoke("license_deactivate");
-// Opens Paddle's customer portal in the user's browser and resolves once it is
-// launched. Deliberately returns nothing: the session URL has a bearer token
-// embedded in it, so it stays in Rust and never reaches this side. Call it on
-// click only — each call costs the server a live Paddle API request.
-export const licensePortal = (): Promise<void> => invoke("license_portal");
-
 // Updates (src-tauri/src/update.rs). PixelMarch runs from its git checkout, so
 // an update is `git pull` + a rebuild — there is no download and no exe swap.
 // The version is the running build's, bare ("0.1.37", no leading v).
