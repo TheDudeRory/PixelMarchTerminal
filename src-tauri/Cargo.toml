@@ -4,6 +4,7 @@ version = "0.1.37"
 description = "PixelMarch - multi-workspace terminal manager"
 authors = ["PixelMarch"]
 edition = "2021"
+license = "MIT"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -54,20 +55,6 @@ chrono = "0.4"
 
 # BigBrain: tiny embedded HTTP memory service.
 tiny_http = "0.12"
-
-# HTTP client + hash. The licensing client (src/license.rs) POSTs and parses
-# JSON (hence the `json` feature); both crates used to belong to the
-# self-updater, which is gone (the app updates with `git pull` + a rebuild,
-# see src/update.rs).
-ureq = { version = "2", features = ["json"] }
-sha2 = "0.10"
-
-# Licensing (src/license.rs): verify Ed25519 entitlement tokens offline against
-# the public key baked into the binary. Verification only -- the app never has a
-# signing key. Same major version as server/ so the two agree on the format.
-# Deliberately NOT a JWT library: the format has no `alg` header, so there is no
-# algorithm agility to get wrong.
-ed25519-dalek = "2"
 
 # System-monitor pane: CPU/mem/net cross-platform; GPU is NVIDIA-only via nvml.
 sysinfo = "0.33"

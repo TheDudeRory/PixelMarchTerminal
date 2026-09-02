@@ -1,7 +1,6 @@
 mod brain;
 mod host;
 mod hostclient;
-mod license;
 mod notify;
 mod ocr;
 mod pty;
@@ -458,9 +457,6 @@ fn run_app(headless: bool) {
             swarm::swarm_guard_probe, swarm::swarm_reclaim,
             pty::swarm_mcp_config,
             update::check_update, update::apply_update, update::update_configured,
-            license::license_status, license::license_activate,
-            license::license_deactivate, license::license_refresh,
-            license::license_portal,
             swarm_headless_request, headless_fail
         ])
         .run(context)
