@@ -11,7 +11,6 @@ import { KNOWN_AGENT_CMDS } from "../lib/swarm";
 import { useBackdropClose } from "../lib/useBackdropClose";
 import { ACCENT_SELECTED, field, label, overlay, row } from "../lib/uiStyles";
 import KeybindsSettings from "./KeybindsSettings";
-import LicenseCategory from "./LicenseSettings";
 
 // ── Category registry ─────────────────────────────────────────────────────────
 // Extensible list of setting categories mirroring the ProfileManager left-list /
@@ -27,7 +26,6 @@ export const SETTINGS_CATEGORIES: SettingsCategory[] = [
   { id: "gui", label: "GUI / Appearance", Component: GuiCategory },
   { id: "shell", label: "Shell / Terminal", Component: ShellCategory },
   { id: "updates", label: "Updates", Component: UpdatesCategory },
-  { id: "license", label: "License", Component: LicenseCategory },
   { id: "session", label: "Session", Component: SessionCategory },
   { id: "keybinds", label: "Keybinds", Component: KeybindsSettings },
 ];
