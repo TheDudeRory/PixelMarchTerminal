@@ -139,8 +139,7 @@ echo "==> Staging $STAGE"
 # who double-clicks or types ./pixelmarch gets the dependency checks first.
 stage "$REPO/packaging/pixelmarch-launcher.sh" pixelmarch               755
 stage "$BIN"                                 pixelmarch-bin             755
-stage "$REPO/legal/EULA.md"                  LICENSE.txt                644
-stage "$REPO/legal/THIRD-PARTY-LICENSES.md"  THIRD-PARTY-LICENSES.txt   644
+stage "$REPO/LICENSE"                        LICENSE.txt                644
 stage "$REPO/packaging/pixelmarch.desktop"   pixelmarch.desktop         644
 stage "$REPO/src-tauri/icons/128x128@2x.png" pixelmarch.png             644
 
@@ -172,14 +171,13 @@ rm -f "$ZIP"
 
 # Written with python3 rather than `zip` for two reasons: every entry's mode is
 # set explicitly rather than read off disk, and the entry list is the allow-list
-# again — the zip can only ever contain the seven files named here.
+# again — the zip can only ever contain the six files named here.
 PM_STAGE="$STAGE" PM_ZIP="$ZIP" PM_NAME="$NAME" python3 - <<'PY'
 import os, zipfile
 stage, zippath, name = os.environ["PM_STAGE"], os.environ["PM_ZIP"], os.environ["PM_NAME"]
 entries = [("pixelmarch", 0o755), ("pixelmarch-bin", 0o755),
            ("INSTALL.txt", 0o644), ("LICENSE.txt", 0o644),
-           ("THIRD-PARTY-LICENSES.txt", 0o644), ("pixelmarch.desktop", 0o644),
-           ("pixelmarch.png", 0o644)]
+           ("pixelmarch.desktop", 0o644), ("pixelmarch.png", 0o644)]
 with zipfile.ZipFile(zippath, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as z:
     for fname, mode in entries:
         src = os.path.join(stage, fname)

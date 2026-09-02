@@ -28,9 +28,9 @@ Two things to know about where you extract it:
   * If your archive manager dropped the exec bit, the launcher restores it.
     If that fails too:  chmod +x pixelmarch pixelmarch-bin
 
-The zip holds seven files: pixelmarch (the launcher you run), pixelmarch-bin
-(the actual program), INSTALL.txt, LICENSE.txt, THIRD-PARTY-LICENSES.txt,
-pixelmarch.desktop, pixelmarch.png. No settings ship with it, so first launch
+The zip holds six files: pixelmarch (the launcher you run), pixelmarch-bin
+(the actual program), INSTALL.txt, LICENSE.txt, pixelmarch.desktop,
+pixelmarch.png. No settings ship with it, so first launch
 gives you a clean profile.
 
 
@@ -133,8 +133,8 @@ while each one is empty: a folder holding any other program's files is left
 exactly as it was.
 
 
-7. LEGAL
+7. LICENSE
 -------------------------------------------------------------------------
 
-LICENSE.txt                 end user license agreement
-THIRD-PARTY-LICENSES.txt    licenses of the bundled open-source components
+PixelMarch is open source under the MIT license; the full text ships in
+LICENSE.txt.
